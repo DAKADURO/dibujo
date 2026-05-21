@@ -187,7 +187,19 @@ function getEntityPoints(ent) {
     return pts;
 }
 
-// ─── Draw DXF ───
+// ─── Render Pipeline Optimization ───
+let renderPending = false;
+function requestDrawDxf() {
+    if (!renderPending) {
+        renderPending = true;
+        requestAnimationFrame(() => {
+            drawDxf();
+            renderPending = false;
+        });
+    }
+}
+
+// ─── Drawing ───
 function drawDxf() {
     if (!dxfData) return;
     
@@ -1024,7 +1036,7 @@ canvas.addEventListener('mousemove', (e) => {
         
         if (currentTool === 'measure') {
             currentSnapPoint = findClosestSnapPoint(pt, 15); // 15px snap radius
-            if (!viewState.isDragging) drawDxf(); // Redraw for live line/snap
+            if (!viewState.isDragging) requestDrawDxf(); // Redraw for live line/snap
         }
     }
     
@@ -1035,7 +1047,7 @@ canvas.addEventListener('mousemove', (e) => {
         viewState.y += dy;
         viewState.lastX = e.clientX;
         viewState.lastY = e.clientY;
-        drawDxf();
+        requestDrawDxf();
     }
 });
 
@@ -1056,5 +1068,5 @@ canvas.addEventListener('wheel', (e) => {
     viewState.y = mouseY - (mouseY - viewState.y) * zoom;
     viewState.scale *= zoom;
     
-    drawDxf();
+    requestDrawDxf();
 }, { passive: false });
