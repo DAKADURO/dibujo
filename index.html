@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visor DXF Premium</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div id="sidebar" class="glass-panel">
+            <h1 class="brand">DXF <span>Studio</span></h1>
+            
+            <div class="tool-section">
+                <h3>Archivo</h3>
+                <label for="dxf-input" class="btn primary">
+                    <span>📁</span> Cargar DXF
+                </label>
+                <input type="file" id="dxf-input" accept=".dxf" class="hidden">
+            </div>
+
+            <div class="tool-section">
+                <h3>Herramientas</h3>
+                <button class="btn tool-btn active" id="btn-pan" title="Mover lienzo">
+                    <span>✋</span> Paneo
+                </button>
+                <button class="btn tool-btn" id="btn-measure" title="Medir distancia entre dos puntos">
+                    <span>📐</span> Medir
+                </button>
+                <button class="btn tool-btn" id="btn-draw" title="Dibujar libre">
+                    <span>✏️</span> Dibujar
+                </button>
+                <button class="btn tool-btn" id="btn-rect" title="Resaltar área">
+                    <span>🔲</span> Rectángulo
+                </button>
+                <button class="btn tool-btn" id="btn-text" title="Agregar texto">
+                    <span>📝</span> Texto
+                </button>
+                <button class="btn tool-btn" id="btn-delete" title="Borrar selección">
+                    <span>🗑️</span> Borrar
+                </button>
+            </div>
+
+            <div class="tool-section">
+                <h3>Análisis</h3>
+                <button class="btn" id="btn-bom" title="Generar listado de materiales">
+                    <span>📋</span> BOM Tubería
+                </button>
+                <button class="btn" id="btn-clear-measures" title="Borrar mediciones">
+                    <span>🧹</span> Limpiar Medidas
+                </button>
+            </div>
+
+            <div class="tool-section">
+                <h3>Exportar</h3>
+                <button class="btn" id="btn-export">
+                    <span>💾</span> Exportar Imagen
+                </button>
+            </div>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="dxf-canvas"></canvas>
+            <canvas id="annotation-canvas"></canvas>
+        </div>
+
+        <!-- Info Bar -->
+        <div id="info-bar">
+            <div class="info-item" id="info-coords">
+                <span class="info-label">Cursor:</span>
+                <span id="cursor-x">X: —</span>
+                <span id="cursor-y">Y: —</span>
+            </div>
+            <div class="info-item" id="info-measure" style="display:none;">
+                <span class="info-label">📐 Medida:</span>
+                <span id="measure-value">—</span>
+            </div>
+            <div class="info-item" id="info-scale">
+                <span class="info-label">Zoom:</span>
+                <span id="zoom-level">100%</span>
+            </div>
+        </div>
+
+        <!-- BOM Panel -->
+        <div id="bom-panel" class="glass-panel hidden">
+            <div class="bom-header">
+                <h2>📋 BOM — Tubería</h2>
+                <div class="bom-actions">
+                    <button class="btn btn-sm" id="btn-bom-csv">
+                        <span>📥</span> CSV
+                    </button>
+                    <button class="btn btn-sm btn-close-bom" id="btn-close-bom">✕</button>
+                </div>
+            </div>
+            <div class="bom-filters">
+                <button class="bom-filter active" data-filter="all">Todo</button>
+                <button class="bom-filter" data-filter="Válvula">Válvulas</button>
+                <button class="bom-filter" data-filter="Accesorio">Accesorios</button>
+                <button class="bom-filter" data-filter="Tubería (spec)">Tubería</button>
+                <button class="bom-filter" data-filter="Tubería (long.)">Longitudes</button>
+                <button class="bom-filter" data-filter="Instrumento">Instrumentos</button>
+            </div>
+            <div class="bom-table-wrap">
+                <table id="bom-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Categoría</th>
+                            <th>Descripción</th>
+                            <th>Detalle</th>
+                            <th>Cantidad</th>
+                            <th>Unidad</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bom-tbody">
+                    </tbody>
+                </table>
+            </div>
+            <div class="bom-footer">
+                <span id="bom-count">0 elementos</span>
+            </div>
+        </div>
+
+        <div id="loading" class="hidden">
+            <div class="spinner"></div>
+            <p>Procesando DXF...</p>
+        </div>
+    </div>
+    
+    <script type="module" src="./main.js"></script>
+</body>
+</html>
