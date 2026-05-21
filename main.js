@@ -398,6 +398,19 @@ function drawMeasurements() {
         const p1 = dxfToScreen(m.p1.x, m.p1.y);
         const p2 = dxfToScreen(m.p2.x, m.p2.y);
         
+        const screenDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        
+        // Hide measurement if it's too small on screen
+        if (screenDist < 15) continue;
+        
+        // Scale font and lines dynamically to avoid clutter when zoomed out
+        const scaleFactor = Math.min(1, screenDist / 80); // 80px screen length is "full size"
+        
+        const dFontSize = Math.max(8, 14 * scaleFactor);
+        const dCrossSize = Math.max(3, 8 * scaleFactor);
+        const dLineWidth = Math.max(1, 2 * scaleFactor);
+        const dPad = Math.max(2, 6 * scaleFactor);
+        
         const isSelected = m.selected;
         const color = isSelected ? '#fbbf24' : '#06b6d4'; // Amber if selected, Cyan if not
         const bgColor = isSelected ? 'rgba(251, 191, 36, 0.15)' : 'rgba(6, 182, 212, 0.15)';
@@ -405,7 +418,7 @@ function drawMeasurements() {
         
         // Dimension line
         ctx.strokeStyle = color;
-        ctx.lineWidth = lineWidth;
+        ctx.lineWidth = dLineWidth;
         ctx.setLineDash([6, 4]);
         ctx.beginPath();
         ctx.moveTo(p1.x, p1.y);
@@ -414,33 +427,34 @@ function drawMeasurements() {
         ctx.setLineDash([]);
         
         // Cross markers
-        drawCross(p1.x, p1.y, crossSize, color);
-        drawCross(p2.x, p2.y, crossSize, color);
+        drawCross(p1.x, p1.y, dCrossSize, color);
+        drawCross(p2.x, p2.y, dCrossSize, color);
         
-        // Distance label
-        const midX = (p1.x + p2.x) / 2;
-        const midY = (p1.y + p2.y) / 2;
-        
-        const label = formatDistance(m.distance);
-        
-        ctx.font = `bold ${fontSize}px "Inter", sans-serif`;
-        const tw = ctx.measureText(label).width;
-        
-        // Label background
-        ctx.fillStyle = bgColor;
-        ctx.strokeStyle = strokeColor;
-        ctx.lineWidth = 1;
-        const pad = 6;
-        ctx.beginPath();
-        ctx.roundRect(midX - tw / 2 - pad, midY - fontSize / 2 - pad, tw + pad * 2, fontSize + pad * 2, 4);
-        ctx.fill();
-        ctx.stroke();
-        
-        // Label text
-        ctx.fillStyle = color;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(label, midX, midY);
+        // Distance label (hide text if the line is still very small)
+        if (screenDist > 30) {
+            const midX = (p1.x + p2.x) / 2;
+            const midY = (p1.y + p2.y) / 2;
+            
+            const label = formatDistance(m.distance);
+            
+            ctx.font = `bold ${dFontSize}px "Inter", sans-serif`;
+            const tw = ctx.measureText(label).width;
+            
+            // Label background
+            ctx.fillStyle = bgColor;
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(midX - tw / 2 - dPad, midY - dFontSize / 2 - dPad, tw + dPad * 2, dFontSize + dPad * 2, 4);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Label text
+            ctx.fillStyle = color;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, midX, midY);
+        }
     }
     
     // Draw pending first point
