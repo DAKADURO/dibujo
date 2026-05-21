@@ -54,12 +54,25 @@ setToolChangeCallback((tool) => {
         container.classList.remove('measure-mode');
     }
     
-    if (tool === 'cople' || tool === 'delete') {
+    const infoSum = document.getElementById('info-sum');
+    
+    if (tool === 'cople' || tool === 'delete' || tool === 'sum') {
         container.classList.add('measure-mode'); // Use crosshair
         if (tool === 'cople' && infoCople) infoCople.style.display = 'flex';
         else if (infoCople) infoCople.style.display = 'none';
+        
+        if (tool === 'sum' && infoSum) infoSum.style.display = 'flex';
+        else if (infoSum) infoSum.style.display = 'none';
     } else {
         if (infoCople) infoCople.style.display = 'none';
+        if (infoSum) infoSum.style.display = 'none';
+    }
+    
+    // Clear selection when not in sum mode
+    if (tool !== 'sum') {
+        measurements.forEach(m => m.selected = false);
+        updateSumDisplay();
+        drawDxf();
     }
 });
 
@@ -377,8 +390,13 @@ function drawMeasurements() {
         const p1 = dxfToScreen(m.p1.x, m.p1.y);
         const p2 = dxfToScreen(m.p2.x, m.p2.y);
         
+        const isSelected = m.selected;
+        const color = isSelected ? '#fbbf24' : '#06b6d4'; // Amber if selected, Cyan if not
+        const bgColor = isSelected ? 'rgba(251, 191, 36, 0.15)' : 'rgba(6, 182, 212, 0.15)';
+        const strokeColor = isSelected ? 'rgba(251, 191, 36, 0.5)' : 'rgba(6, 182, 212, 0.5)';
+        
         // Dimension line
-        ctx.strokeStyle = '#06b6d4';
+        ctx.strokeStyle = color;
         ctx.lineWidth = lineWidth;
         ctx.setLineDash([6, 4]);
         ctx.beginPath();
@@ -388,8 +406,8 @@ function drawMeasurements() {
         ctx.setLineDash([]);
         
         // Cross markers
-        drawCross(p1.x, p1.y, crossSize, '#06b6d4');
-        drawCross(p2.x, p2.y, crossSize, '#06b6d4');
+        drawCross(p1.x, p1.y, crossSize, color);
+        drawCross(p2.x, p2.y, crossSize, color);
         
         // Distance label
         const midX = (p1.x + p2.x) / 2;
@@ -401,8 +419,8 @@ function drawMeasurements() {
         const tw = ctx.measureText(label).width;
         
         // Label background
-        ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
-        ctx.strokeStyle = 'rgba(6, 182, 212, 0.5)';
+        ctx.fillStyle = bgColor;
+        ctx.strokeStyle = strokeColor;
         ctx.lineWidth = 1;
         const pad = 6;
         ctx.beginPath();
@@ -411,7 +429,7 @@ function drawMeasurements() {
         ctx.stroke();
         
         // Label text
-        ctx.fillStyle = '#06b6d4';
+        ctx.fillStyle = color;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(label, midX, midY);
@@ -600,6 +618,54 @@ function distToSegmentSquaredScreen(p, v, w) {
     t = Math.max(0, Math.min(1, t));
     const proj = { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) };
     return (p.x - proj.x)**2 + (p.y - proj.y)**2;
+}
+
+// ─── Sum mode logic ───
+function handleSumClick(e) {
+    if (currentTool !== 'sum') return;
+    
+    const clickScreen = {
+        x: e.clientX - canvas.getBoundingClientRect().left,
+        y: e.clientY - canvas.getBoundingClientRect().top
+    };
+    
+    const maxScreenDistSq = 15 * 15;
+    let clickedSomething = false;
+    
+    for (let i = measurements.length - 1; i >= 0; i--) {
+        const m = measurements[i];
+        const p1s = dxfToScreen(m.p1.x, m.p1.y);
+        const p2s = dxfToScreen(m.p2.x, m.p2.y);
+        
+        const dSq = distToSegmentSquaredScreen(clickScreen, p1s, p2s);
+        
+        const midX = (p1s.x + p2s.x) / 2;
+        const midY = (p1s.y + p2s.y) / 2;
+        const distToCenterSq = (clickScreen.x - midX)**2 + (clickScreen.y - midY)**2;
+        
+        if (dSq < maxScreenDistSq || distToCenterSq < maxScreenDistSq * 2) {
+            m.selected = !m.selected; // Toggle selection
+            clickedSomething = true;
+            break; 
+        }
+    }
+    
+    if (clickedSomething) {
+        updateSumDisplay();
+        drawDxf();
+    }
+}
+
+function updateSumDisplay() {
+    const sumEl = document.getElementById('sum-value');
+    if (!sumEl) return;
+    
+    let total = 0;
+    measurements.forEach(m => {
+        if (m.selected) total += m.distance;
+    });
+    
+    sumEl.textContent = formatDistance(total);
 }
 
 // ══════════════════════════════════════════════════
@@ -841,6 +907,10 @@ canvas.addEventListener('mousedown', (e) => {
     }
     if (currentTool === 'delete') {
         handleDeleteClick(e);
+        return;
+    }
+    if (currentTool === 'sum') {
+        handleSumClick(e);
         return;
     }
     if (currentTool === 'pan') {

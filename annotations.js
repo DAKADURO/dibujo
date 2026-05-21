@@ -31,6 +31,7 @@ export function setupAnnotations() {
     document.getElementById('btn-text').addEventListener('click', (e) => setMode('text', e.target.closest('.btn')));
     
     document.getElementById('btn-delete').addEventListener('click', (e) => setMode('delete', e.target.closest('.btn')));
+    document.getElementById('btn-sum').addEventListener('click', (e) => setMode('sum', e.target.closest('.btn')));
     
     // Allow deleting Fabric objects with Backspace/Delete keys
     window.addEventListener('keydown', (e) => {
@@ -153,8 +154,8 @@ export function setMode(mode, btnElement) {
         fCanvas.freeDrawingBrush.color = '#eab308';
         fCanvas.freeDrawingBrush.width = 4;
         if (fabricWrapper) fabricWrapper.style.pointerEvents = 'auto';
-    } else if (mode === 'pan' || mode === 'measure' || mode === 'cople' || mode === 'delete') {
-        // In pan/measure/cople/delete mode, let clicks pass through to the DXF canvas
+    } else if (mode === 'pan' || mode === 'measure' || mode === 'cople' || mode === 'delete' || mode === 'sum') {
+        // In pan/measure/cople/delete/sum mode, let clicks pass through to the DXF canvas
         fCanvas.forEachObject(obj => obj.set('selectable', mode === 'pan'));
         if (fabricWrapper) fabricWrapper.style.pointerEvents = 'none';
     } else {

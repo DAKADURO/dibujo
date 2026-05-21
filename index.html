@@ -41,6 +41,9 @@
                 <button class="btn tool-btn" id="btn-cople" title="Matriz de coples en línea">
                     <span>⛓️</span> Matriz Coples
                 </button>
+                <button class="btn tool-btn" id="btn-sum" title="Sumar cotas seleccionadas">
+                    <span>∑</span> Sumar Cotas
+                </button>
                 <button class="btn tool-btn" id="btn-delete" title="Borrador (clic para borrar)">
                     <span>🧽</span> Borrador
                 </button>
@@ -83,6 +86,10 @@
             <div class="info-item" id="info-cople" style="display:none; align-items:center;">
                 <span class="info-label" style="color:var(--emerald);">⛓️ Separación:</span>
                 <input type="number" id="cople-dist" value="5791.2" step="100" style="width:70px; background:rgba(255,255,255,0.1); border:1px solid var(--glass-border); color:white; padding:2px 4px; border-radius:4px; font-size:11px;">
+            </div>
+            <div class="info-item" id="info-sum" style="display:none;">
+                <span class="info-label" style="color:var(--primary);">∑ Total:</span>
+                <span id="sum-value" style="font-weight:bold; color:var(--primary);">0.00 mm</span>
             </div>
             <div class="info-item" id="info-scale">
                 <span class="info-label">Zoom:</span>
