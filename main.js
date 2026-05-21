@@ -24,6 +24,9 @@ let currentTool = 'pan';
 let currentSnapPoint = null;
 let currentMousePt = null;
 
+// ─── Cople Array State ───
+export const virtualCouplings = [];
+
 // ─── BOM State ───
 let bomData = null;
 
@@ -43,10 +46,19 @@ setupAnnotations();
 setToolChangeCallback((tool) => {
     currentTool = tool;
     const container = document.getElementById('canvas-container');
+    const infoCople = document.getElementById('info-cople');
+    
     if (tool === 'measure') {
         container.classList.add('measure-mode');
     } else {
         container.classList.remove('measure-mode');
+    }
+    
+    if (tool === 'cople') {
+        container.classList.add('measure-mode'); // Use crosshair
+        if (infoCople) infoCople.style.display = 'flex';
+    } else {
+        if (infoCople) infoCople.style.display = 'none';
     }
 });
 
@@ -171,7 +183,8 @@ function drawDxf() {
     
     ctx.restore();
     
-    // Draw measurements overlay (in screen coords)
+    // Draw overlays (in screen coords)
+    drawCouplings();
     drawMeasurements();
     
     // Update zoom display
@@ -523,10 +536,134 @@ function handleMeasureClick(e) {
     drawDxf();
 }
 
+// ══════════════════════════════════════════════════
+//  COPLE ARRAY TOOL
+// ══════════════════════════════════════════════════
+
+function drawCouplings() {
+    if (virtualCouplings.length === 0) return;
+    ctx.save();
+    
+    // Draw couplings as small red rectangles perpendicular to the line
+    const width = 10;
+    const height = 4;
+    
+    ctx.fillStyle = '#ef4444'; // Red
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    
+    for (const c of virtualCouplings) {
+        const p = dxfToScreen(c.x, c.y);
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        // Angle comes from DXF, we need to invert Y for screen coords
+        ctx.rotate(-c.angle);
+        
+        ctx.fillRect(-width/2, -height/2, width, height);
+        ctx.strokeRect(-width/2, -height/2, width, height);
+        ctx.restore();
+    }
+    
+    ctx.restore();
+}
+
+function handleCopleClick(e) {
+    if (currentTool !== 'cople') return;
+    if (!dxfData || !dxfData.entities) return;
+    
+    const pt = screenToDxf(e.clientX, e.clientY);
+    const maxScreenDist = 15;
+    const maxDxfDistSq = Math.pow(maxScreenDist / viewState.scale, 2);
+    
+    let closestEnt = null;
+    let closestDistSq = Infinity;
+    
+    // Valid layers roughly for piping
+    const pipeLayers = ['TUBOS', 'LINEA', 'I2DRUCKL', 'I2HDRUCKL', 'ALIMENTACION', 'AIRE', 'A-CONEX'];
+    
+    for (const ent of dxfData.entities) {
+        if (ent.type !== 'LINE' && ent.type !== 'LWPOLYLINE' && ent.type !== 'POLYLINE') continue;
+        
+        // Find distance to segment
+        let pts = [];
+        if (ent.type === 'LINE') {
+            pts = ent.vertices || [];
+        } else {
+            pts = ent.vertices || [];
+        }
+        
+        for (let i = 0; i < pts.length - 1; i++) {
+            const dSq = distToSegmentSquared(pt, pts[i], pts[i+1]);
+            if (dSq < maxDxfDistSq && dSq < closestDistSq) {
+                closestDistSq = dSq;
+                closestEnt = ent;
+            }
+        }
+    }
+    
+    if (closestEnt) {
+        const inputDist = parseFloat(document.getElementById('cople-dist').value);
+        if (isNaN(inputDist) || inputDist <= 0) {
+            alert('Por favor ingresa una distancia válida.');
+            return;
+        }
+        
+        let pts = closestEnt.vertices || [];
+        let distanceAccum = 0;
+        let generated = 0;
+        
+        for (let i = 0; i < pts.length - 1; i++) {
+            const p1 = pts[i];
+            const p2 = pts[i+1];
+            
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const segLen = Math.sqrt(dx*dx + dy*dy);
+            const angle = Math.atan2(dy, dx);
+            
+            let localD = inputDist - distanceAccum;
+            
+            while (localD <= segLen) {
+                // Generate a coupling
+                const cx = p1.x + (dx / segLen) * localD;
+                const cy = p1.y + (dy / segLen) * localD;
+                
+                virtualCouplings.push({
+                    x: cx,
+                    y: cy,
+                    angle: angle,
+                    layer: closestEnt.layer
+                });
+                
+                generated++;
+                localD += inputDist;
+            }
+            
+            // leftover length
+            distanceAccum = segLen - (localD - inputDist);
+        }
+        
+        drawDxf();
+    }
+}
+
+function distToSegmentSquared(p, v, w) {
+    const l2 = distSquared(v, w);
+    if (l2 === 0) return distSquared(p, v);
+    let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return distSquared(p, { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) });
+}
+
+function distSquared(v, w) {
+    return (v.x - w.x)*(v.x - w.x) + (v.y - w.y)*(v.y - w.y);
+}
+
 // ─── Clear measurements ───
 document.getElementById('btn-clear-measures')?.addEventListener('click', () => {
     measurements = [];
     measurePending = null;
+    virtualCouplings.length = 0; // Clear couplings as well
     const infoMeasure = document.getElementById('info-measure');
     if (infoMeasure) infoMeasure.style.display = 'none';
     drawDxf();
@@ -548,7 +685,7 @@ document.getElementById('btn-bom')?.addEventListener('click', () => {
         return;
     }
     
-    bomData = generateBOM(dxfData);
+    bomData = generateBOM(dxfData, virtualCouplings);
     if (!bomData || bomData.summary.length === 0) {
         alert('No se encontraron elementos de tubería en el archivo.');
         return;
@@ -630,6 +767,10 @@ function renderBOMTable(data) {
 canvas.addEventListener('mousedown', (e) => {
     if (currentTool === 'measure') {
         handleMeasureClick(e);
+        return;
+    }
+    if (currentTool === 'cople') {
+        handleCopleClick(e);
         return;
     }
     if (currentTool === 'pan') {

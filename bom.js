@@ -39,9 +39,10 @@ const TEXT_LAYERS = ['TEXTO', 'TEXTO2', 'T2TXT03', 'T4TXT07', 'FORTLUFT'];
 /**
  * Main BOM generation function.
  * @param {Object} dxfData — parsed DXF data from dxf-parser
+ * @param {Array} virtualCouplings — virtual couplings created by the matrix tool
  * @returns {Object} { valves, fittings, instruments, pipeSpecs, pipeLengths }
  */
-export function generateBOM(dxfData) {
+export function generateBOM(dxfData, virtualCouplings = []) {
     if (!dxfData || !dxfData.entities) return null;
 
     const result = {
@@ -150,6 +151,16 @@ export function generateBOM(dxfData) {
             }
         }
     }
+    // Add virtual couplings
+    if (virtualCouplings && virtualCouplings.length > 0) {
+        fittingCounts['VirtualCople'] = { 
+            description: 'Cople (Matriz Virtual)', 
+            type: 'Cople', 
+            layer: 'Virtual', 
+            count: virtualCouplings.length 
+        };
+    }
+    
     result.fittings = Object.values(fittingCounts);
     result.pipeSpecs = Object.values(pipeSpecSet);
 

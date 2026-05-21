@@ -25,6 +25,7 @@ export function setupAnnotations() {
     // ─── Tool Buttons ───
     document.getElementById('btn-pan').addEventListener('click', (e) => setMode('pan', e.target.closest('.btn')));
     document.getElementById('btn-measure').addEventListener('click', (e) => setMode('measure', e.target.closest('.btn')));
+    document.getElementById('btn-cople').addEventListener('click', (e) => setMode('cople', e.target.closest('.btn')));
     document.getElementById('btn-draw').addEventListener('click', (e) => setMode('draw', e.target.closest('.btn')));
     document.getElementById('btn-rect').addEventListener('click', (e) => setMode('rect', e.target.closest('.btn')));
     document.getElementById('btn-text').addEventListener('click', (e) => setMode('text', e.target.closest('.btn')));
@@ -143,8 +144,8 @@ export function setMode(mode, btnElement) {
         fCanvas.freeDrawingBrush.color = '#eab308';
         fCanvas.freeDrawingBrush.width = 4;
         if (fabricWrapper) fabricWrapper.style.pointerEvents = 'auto';
-    } else if (mode === 'pan' || mode === 'measure') {
-        // In pan/measure mode, let clicks pass through to the DXF canvas
+    } else if (mode === 'pan' || mode === 'measure' || mode === 'cople') {
+        // In pan/measure/cople mode, let clicks pass through to the DXF canvas
         fCanvas.forEachObject(obj => obj.set('selectable', mode === 'pan'));
         if (fabricWrapper) fabricWrapper.style.pointerEvents = 'none';
     } else {
