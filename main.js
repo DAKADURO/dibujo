@@ -8,7 +8,7 @@ const ctx = canvas.getContext('2d');
 const loading = document.getElementById('loading');
 
 let dxfData = null;
-let viewState = {
+export const viewState = {
     x: 0,
     y: 0,
     scale: 1,
@@ -136,7 +136,7 @@ dxfInput.addEventListener('change', (e) => {
 });
 
 // ─── Coordinate Transforms ───
-function screenToDxf(screenX, screenY) {
+export function screenToDxf(screenX, screenY) {
     const rect = canvas.getBoundingClientRect();
     const cx = screenX - rect.left;
     const cy = screenY - rect.top;
@@ -145,7 +145,7 @@ function screenToDxf(screenX, screenY) {
     return { x: dxfX, y: dxfY };
 }
 
-function dxfToScreen(dxfX, dxfY) {
+export function dxfToScreen(dxfX, dxfY) {
     const sx = dxfX * viewState.scale + viewState.x;
     const sy = -dxfY * viewState.scale + viewState.y;
     return { x: sx, y: sy };
@@ -228,6 +228,11 @@ function drawDxf() {
     // Draw overlays (in screen coords)
     drawCouplings();
     drawMeasurements();
+    
+    // Sync Fabric.js Symbols
+    if (window.syncFabricSymbols) {
+        window.syncFabricSymbols(viewState.scale);
+    }
     
     // Update zoom display
     const zoomEl = document.getElementById('zoom-level');
@@ -926,7 +931,8 @@ function saveAnnotations() {
             p1: m.p1, p2: m.p2, distance: m.distance, color: m.color
         })), // Strip out 'selected' state so it doesn't persist visual selection
         couplings: virtualCouplings,
-        unit: currentUnit
+        unit: currentUnit,
+        symbols: window.getFabricSymbolsData ? window.getFabricSymbolsData() : []
     };
     try {
         localStorage.setItem(`dxf_annotations_${currentFileName}`, JSON.stringify(data));
@@ -951,6 +957,10 @@ function loadAnnotations() {
                 const unitSelect = document.getElementById('unit-select');
                 if (unitSelect) unitSelect.value = currentUnit;
                 updateCouplingDefault();
+            }
+            if (data.symbols && window.loadFabricSymbolsData) {
+                window.loadFabricSymbolsData(data.symbols);
+                if (window.syncFabricSymbols) window.syncFabricSymbols(viewState.scale);
             }
         }
     } catch(e) {

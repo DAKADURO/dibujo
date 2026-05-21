@@ -33,6 +33,12 @@ export function setupAnnotations() {
     document.getElementById('btn-delete').addEventListener('click', (e) => setMode('delete', e.target.closest('.btn')));
     document.getElementById('btn-sum').addEventListener('click', (e) => setMode('sum', e.target.closest('.btn')));
     
+    // ─── Symbols ───
+    document.getElementById('btn-sym-tee').addEventListener('click', () => addSymbol('tee'));
+    document.getElementById('btn-sym-codo').addEventListener('click', () => addSymbol('codo'));
+    document.getElementById('btn-sym-reductor').addEventListener('click', () => addSymbol('reductor'));
+    document.getElementById('btn-sym-brida').addEventListener('click', () => addSymbol('brida'));
+    
     // Allow deleting Fabric objects with Backspace/Delete keys
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -132,7 +138,186 @@ export function setupAnnotations() {
             currentShape = null;
         }
     });
+    
+    // Save DXF coordinates when a symbol is dragged
+    fCanvas.on('object:modified', (e) => {
+        const obj = e.target;
+        if (obj && obj.isPipingSymbol && window.screenToDxf) {
+            const pt = window.screenToDxf(obj.left, obj.top);
+            obj.dxfX = pt.x;
+            obj.dxfY = pt.y;
+            // Base scale is preserved, only scale relative to viewState changes
+        }
+    });
 }
+
+// ─── Piping Symbols ───
+function addSymbol(type) {
+    if (!window.screenToDxf) return;
+    
+    // Center of screen
+    const cx = fCanvas.width / 2;
+    const cy = fCanvas.height / 2;
+    const dxfPt = window.screenToDxf(cx, cy);
+    
+    const color = '#06b6d4'; // Cyan default
+    let obj;
+    
+    // We create simple SVG paths for symbols
+    if (type === 'tee') {
+        // Tee shape
+        obj = new fabric.Path('M -15 0 L 15 0 M 0 0 L 0 20', {
+            stroke: color, strokeWidth: 3, fill: 'transparent'
+        });
+    } else if (type === 'codo') {
+        // Elbow 90 deg
+        obj = new fabric.Path('M -10 -10 L -10 10 L 10 10', {
+            stroke: color, strokeWidth: 3, fill: 'transparent'
+        });
+    } else if (type === 'reductor') {
+        // Reducer (trapezoid)
+        obj = new fabric.Polygon([
+            {x: -15, y: -10}, {x: 15, y: -5}, {x: 15, y: 5}, {x: -15, y: 10}
+        ], {
+            stroke: color, strokeWidth: 2, fill: 'transparent'
+        });
+    } else if (type === 'brida') {
+        // Flange (two parallel lines)
+        obj = new fabric.Path('M -5 -15 L -5 15 M 5 -15 L 5 15', {
+            stroke: color, strokeWidth: 3, fill: 'transparent'
+        });
+    }
+    
+    if (obj) {
+        obj.set({
+            left: cx,
+            top: cy,
+            originX: 'center',
+            originY: 'center',
+            cornerColor: '#fbbf24',
+            cornerStrokeColor: '#fbbf24',
+            borderColor: '#fbbf24',
+            transparentCorners: false,
+            snapAngle: 90, // Snap to 90 degrees
+            snapThreshold: 10
+        });
+        
+        obj.isPipingSymbol = true;
+        obj.dxfX = dxfPt.x;
+        obj.dxfY = dxfPt.y;
+        obj.baseScaleX = obj.scaleX;
+        obj.baseScaleY = obj.scaleY;
+        
+        // Sync scale with current viewState.scale
+        if (window.viewStateScale) {
+            // Need a reference to initial zoom to scale correctly
+            // Let's just store the dxfScale it was created at
+            obj.createdDxfScale = window.viewStateScale;
+        }
+        
+        fCanvas.add(obj);
+        fCanvas.setActiveObject(obj);
+        setMode('pan', document.getElementById('btn-pan'));
+    }
+}
+
+// Called by main.js during drawDxf()
+window.syncFabricSymbols = function(currentScale) {
+    if (!fCanvas) return;
+    window.viewStateScale = currentScale;
+    
+    let needsRender = false;
+    fCanvas.getObjects().forEach(obj => {
+        if (obj.isPipingSymbol && obj.dxfX !== undefined && window.dxfToScreen) {
+            const sp = window.dxfToScreen(obj.dxfX, obj.dxfY);
+            
+            // If scale changes, we want the symbol to scale with the drawing
+            // But we have to relative to its creation scale
+            let newScale = 1;
+            if (obj.createdDxfScale) {
+                newScale = currentScale / obj.createdDxfScale;
+            }
+            
+            obj.set({ 
+                left: sp.x, 
+                top: sp.y,
+                scaleX: (obj.baseScaleX || 1) * newScale,
+                scaleY: (obj.baseScaleY || 1) * newScale
+            });
+            obj.setCoords();
+            needsRender = true;
+        }
+    });
+    
+    if (needsRender) {
+        fCanvas.renderAll();
+    }
+};
+
+window.getFabricSymbolsData = function() {
+    if (!fCanvas) return [];
+    const symbols = [];
+    fCanvas.getObjects().forEach(obj => {
+        if (obj.isPipingSymbol) {
+            symbols.push({
+                type: obj.type, // fabric type
+                path: obj.path, // for path objects
+                points: obj.points, // for polygon
+                dxfX: obj.dxfX,
+                dxfY: obj.dxfY,
+                angle: obj.angle,
+                createdDxfScale: obj.createdDxfScale,
+                baseScaleX: obj.baseScaleX,
+                baseScaleY: obj.baseScaleY
+            });
+        }
+    });
+    return symbols;
+};
+
+window.loadFabricSymbolsData = function(symbolsData) {
+    if (!fCanvas || !symbolsData || !window.dxfToScreen) return;
+    
+    symbolsData.forEach(data => {
+        let obj;
+        if (data.type === 'path' && data.path) {
+            obj = new fabric.Path(data.path, {
+                stroke: '#06b6d4', strokeWidth: 3, fill: 'transparent'
+            });
+        } else if (data.type === 'polygon' && data.points) {
+            obj = new fabric.Polygon(data.points, {
+                stroke: '#06b6d4', strokeWidth: 2, fill: 'transparent'
+            });
+        }
+        
+        if (obj) {
+            const sp = window.dxfToScreen(data.dxfX, data.dxfY);
+            obj.set({
+                left: sp.x,
+                top: sp.y,
+                originX: 'center',
+                originY: 'center',
+                cornerColor: '#fbbf24',
+                cornerStrokeColor: '#fbbf24',
+                borderColor: '#fbbf24',
+                transparentCorners: false,
+                snapAngle: 90,
+                snapThreshold: 10,
+                angle: data.angle || 0
+            });
+            
+            obj.isPipingSymbol = true;
+            obj.dxfX = data.dxfX;
+            obj.dxfY = data.dxfY;
+            obj.createdDxfScale = data.createdDxfScale;
+            obj.baseScaleX = data.baseScaleX;
+            obj.baseScaleY = data.baseScaleY;
+            
+            fCanvas.add(obj);
+        }
+    });
+    fCanvas.renderAll();
+};
 
 export function setMode(mode, btnElement) {
     currentMode = mode;
