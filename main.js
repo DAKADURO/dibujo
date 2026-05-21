@@ -25,6 +25,7 @@ let currentSnapPoint = null;
 let currentMousePt = null;
 let currentFileName = '';
 let currentMeasureColor = '#06b6d4';
+let currentUnit = 'mm';
 
 // ─── Cople Array State ───
 export const virtualCouplings = [];
@@ -107,6 +108,12 @@ dxfInput.addEventListener('change', (e) => {
             dxfData = parser.parseSync(fileContent);
             console.log('DXF Parsed:', dxfData);
             fitToScreen();
+            
+            // Detect and set units
+            currentUnit = detectUnits();
+            const unitSelect = document.getElementById('unit-select');
+            if (unitSelect) unitSelect.value = currentUnit;
+            updateCouplingDefault();
             
             // Reset state
             measurements = [];
@@ -548,14 +555,8 @@ function drawCross(x, y, size, color) {
     ctx.stroke();
 }
 
-function formatDistance(d) {
-    if (d >= 1000) {
-        return (d / 1000).toFixed(2) + ' m';
-    } else if (d >= 1) {
-        return d.toFixed(2) + ' mm';
-    } else {
-        return d.toFixed(4) + ' mm';
-    }
+function formatDistance(dist) {
+    return dist.toFixed(2) + ' ' + currentUnit;
 }
 
 function handleMeasureClick(e) {
@@ -637,7 +638,17 @@ function handleDeleteClick(e) {
             const p = dxfToScreen(c.x, c.y);
             const dSq = (clickScreen.x - p.x)**2 + (clickScreen.y - p.y)**2;
             if (dSq < maxScreenDistSq) {
-                virtualCouplings.splice(i, 1);
+                const idToDelete = c.matrixId;
+                if (idToDelete) {
+                    // Delete all couplings generated in the same matrix operation
+                    for (let j = virtualCouplings.length - 1; j >= 0; j--) {
+                        if (virtualCouplings[j].matrixId === idToDelete) {
+                            virtualCouplings.splice(j, 1);
+                        }
+                    }
+                } else {
+                    virtualCouplings.splice(i, 1);
+                }
                 deletedSomething = true;
                 break;
             }
@@ -780,31 +791,29 @@ function handleCopleClick(e) {
             return;
         }
         
-        let pts = closestEnt.vertices || [];
-        let distanceAccum = 0;
+        let selectedPoints = closestEnt.vertices || [];
+        let distanceAccum = inputDist;
         let generated = 0;
+        const matrixId = Date.now(); // Group ID for matrix deletion
         
-        for (let i = 0; i < pts.length - 1; i++) {
-            const p1 = pts[i];
-            const p2 = pts[i+1];
+        for (let i = 0; i < selectedPoints.length - 1; i++) {
+            const pA = selectedPoints[i];
+            const pB = selectedPoints[i+1];
             
-            const dx = p2.x - p1.x;
-            const dy = p2.y - p1.y;
-            const segLen = Math.sqrt(dx*dx + dy*dy);
-            const angle = Math.atan2(dy, dx);
+            const dx = pB.x - pA.x;
+            const dy = pB.y - pA.y;
+            const segLen = Math.hypot(dx, dy);
             
-            let localD = inputDist - distanceAccum;
-            
+            let localD = distanceAccum;
             while (localD <= segLen) {
-                // Generate a coupling
-                const cx = p1.x + (dx / segLen) * localD;
-                const cy = p1.y + (dy / segLen) * localD;
+                const t = localD / segLen;
+                const copleX = pA.x + dx * t;
+                const copleY = pA.y + dy * t;
                 
-                virtualCouplings.push({
-                    x: cx,
-                    y: cy,
-                    angle: angle,
-                    layer: closestEnt.layer
+                virtualCouplings.push({ 
+                    x: copleX, 
+                    y: copleY, 
+                    matrixId 
                 });
                 
                 generated++;
@@ -871,6 +880,44 @@ function hexToRgba(hex, alpha) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+// ─── Unit Logic ───
+document.getElementById('unit-select')?.addEventListener('change', (e) => {
+    currentUnit = e.target.value;
+    updateCouplingDefault();
+    saveAnnotations(); // In case we want to persist unit preference later, but mostly triggers a redraw
+    requestDrawDxf();
+});
+
+function updateCouplingDefault() {
+    const input = document.getElementById('cople-dist');
+    if (!input) return;
+    if (currentUnit === 'm') input.value = '5.79';
+    else if (currentUnit === 'in') input.value = '228';
+    else input.value = '5791.2';
+}
+
+function detectUnits() {
+    if (dxfData.header && dxfData.header.$INSUNITS !== undefined) {
+        const u = dxfData.header.$INSUNITS;
+        if (u === 1) return 'in';
+        if (u === 4) return 'mm';
+        if (u === 6) return 'm';
+    }
+    
+    let minX = Infinity, maxX = -Infinity;
+    for (const ent of dxfData.entities) {
+        const points = getEntityPoints(ent);
+        for (const p of points) {
+            if (p.x < minX) minX = p.x;
+            if (p.x > maxX) maxX = p.x;
+        }
+    }
+    const width = maxX - minX;
+    // If the entire drawing is less than 1000 units wide, it's highly likely to be in meters.
+    if (width > 0 && width < 1000) return 'm'; 
+    return 'mm';
+}
+
 // ─── Persistence Logic ───
 function saveAnnotations() {
     if (!currentFileName) return;
@@ -878,7 +925,8 @@ function saveAnnotations() {
         measurements: measurements.map(m => ({
             p1: m.p1, p2: m.p2, distance: m.distance, color: m.color
         })), // Strip out 'selected' state so it doesn't persist visual selection
-        couplings: virtualCouplings
+        couplings: virtualCouplings,
+        unit: currentUnit
     };
     try {
         localStorage.setItem(`dxf_annotations_${currentFileName}`, JSON.stringify(data));
@@ -897,6 +945,12 @@ function loadAnnotations() {
             if (data.couplings) {
                 virtualCouplings.length = 0;
                 virtualCouplings.push(...data.couplings);
+            }
+            if (data.unit) {
+                currentUnit = data.unit;
+                const unitSelect = document.getElementById('unit-select');
+                if (unitSelect) unitSelect.value = currentUnit;
+                updateCouplingDefault();
             }
         }
     } catch(e) {
