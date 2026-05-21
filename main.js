@@ -144,12 +144,14 @@ export function screenToDxf(screenX, screenY) {
     const dxfY = -(cy - viewState.y) / viewState.scale;  // Y is inverted
     return { x: dxfX, y: dxfY };
 }
+window.screenToDxf = screenToDxf;
 
 export function dxfToScreen(dxfX, dxfY) {
     const sx = dxfX * viewState.scale + viewState.x;
     const sy = -dxfY * viewState.scale + viewState.y;
     return { x: sx, y: sy };
 }
+window.dxfToScreen = dxfToScreen;
 
 // ─── Fit to Screen ───
 function fitToScreen() {
