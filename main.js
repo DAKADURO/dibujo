@@ -23,6 +23,7 @@ let measurePending = null; // first click point (in DXF coords)
 let currentTool = 'pan';
 let currentSnapPoint = null;
 let currentMousePt = null;
+let currentFileName = '';
 
 // ─── Cople Array State ───
 export const virtualCouplings = [];
@@ -81,6 +82,7 @@ dxfInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    currentFileName = file.name;
     loading.classList.remove('hidden');
 
     const reader = new FileReader();
@@ -104,11 +106,17 @@ dxfInput.addEventListener('change', (e) => {
             dxfData = parser.parseSync(fileContent);
             console.log('DXF Parsed:', dxfData);
             fitToScreen();
-            drawDxf();
-            // Reset measurements and BOM
+            
+            // Reset state
             measurements = [];
+            virtualCouplings.length = 0;
             measurePending = null;
             bomData = null;
+            
+            // Try to load saved annotations for this file
+            loadAnnotations();
+            
+            drawDxf();
         } catch (err) {
             console.error('Error parsing DXF', err);
             alert('Error al leer el archivo DXF.');
@@ -550,6 +558,7 @@ function handleMeasureClick(e) {
         if (mv) mv.textContent = formatDistance(distance);
         
         measurePending = null;
+        saveAnnotations();
     }
     
     drawDxf();
@@ -606,6 +615,7 @@ function handleDeleteClick(e) {
     }
     
     if (deletedSomething) {
+        saveAnnotations();
         drawDxf();
         // If BOM is open, we could refresh it, but the user has to click it again anyway.
     }
@@ -775,6 +785,7 @@ function handleCopleClick(e) {
             distanceAccum = segLen - (localD - inputDist);
         }
         
+        if (generated > 0) saveAnnotations();
         drawDxf();
     }
 }
@@ -796,10 +807,44 @@ document.getElementById('btn-clear-measures')?.addEventListener('click', () => {
     measurements = [];
     measurePending = null;
     virtualCouplings.length = 0; // Clear couplings as well
+    saveAnnotations();
     const infoMeasure = document.getElementById('info-measure');
     if (infoMeasure) infoMeasure.style.display = 'none';
     drawDxf();
 });
+
+// ─── Persistence Logic ───
+function saveAnnotations() {
+    if (!currentFileName) return;
+    const data = {
+        measurements: measurements.map(m => ({
+            p1: m.p1, p2: m.p2, distance: m.distance
+        })), // Strip out 'selected' state so it doesn't persist visual selection
+        couplings: virtualCouplings
+    };
+    try {
+        localStorage.setItem(`dxf_annotations_${currentFileName}`, JSON.stringify(data));
+    } catch(e) {
+        console.warn('Could not save to localStorage', e);
+    }
+}
+
+function loadAnnotations() {
+    if (!currentFileName) return;
+    try {
+        const saved = localStorage.getItem(`dxf_annotations_${currentFileName}`);
+        if (saved) {
+            const data = JSON.parse(saved);
+            if (data.measurements) measurements = data.measurements;
+            if (data.couplings) {
+                virtualCouplings.length = 0;
+                virtualCouplings.push(...data.couplings);
+            }
+        }
+    } catch(e) {
+        console.warn('Could not load from localStorage', e);
+    }
+}
 
 // ══════════════════════════════════════════════════
 //  TOOL SWITCHING (exported for annotations.js)
