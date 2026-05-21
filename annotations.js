@@ -30,11 +30,20 @@ export function setupAnnotations() {
     document.getElementById('btn-rect').addEventListener('click', (e) => setMode('rect', e.target.closest('.btn')));
     document.getElementById('btn-text').addEventListener('click', (e) => setMode('text', e.target.closest('.btn')));
     
-    document.getElementById('btn-delete').addEventListener('click', () => {
-        const activeObjects = fCanvas.getActiveObjects();
-        if (activeObjects.length) {
-            fCanvas.discardActiveObject();
-            activeObjects.forEach((obj) => fCanvas.remove(obj));
+    document.getElementById('btn-delete').addEventListener('click', (e) => setMode('delete', e.target.closest('.btn')));
+    
+    // Allow deleting Fabric objects with Backspace/Delete keys
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+            const activeObjects = fCanvas.getActiveObjects();
+            if (activeObjects.length) {
+                // Prevent browser navigation for Backspace
+                if (e.key === 'Backspace' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                }
+                fCanvas.discardActiveObject();
+                activeObjects.forEach((obj) => fCanvas.remove(obj));
+            }
         }
     });
 
@@ -144,8 +153,8 @@ export function setMode(mode, btnElement) {
         fCanvas.freeDrawingBrush.color = '#eab308';
         fCanvas.freeDrawingBrush.width = 4;
         if (fabricWrapper) fabricWrapper.style.pointerEvents = 'auto';
-    } else if (mode === 'pan' || mode === 'measure' || mode === 'cople') {
-        // In pan/measure/cople mode, let clicks pass through to the DXF canvas
+    } else if (mode === 'pan' || mode === 'measure' || mode === 'cople' || mode === 'delete') {
+        // In pan/measure/cople/delete mode, let clicks pass through to the DXF canvas
         fCanvas.forEachObject(obj => obj.set('selectable', mode === 'pan'));
         if (fabricWrapper) fabricWrapper.style.pointerEvents = 'none';
     } else {

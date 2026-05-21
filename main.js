@@ -54,9 +54,10 @@ setToolChangeCallback((tool) => {
         container.classList.remove('measure-mode');
     }
     
-    if (tool === 'cople') {
+    if (tool === 'cople' || tool === 'delete') {
         container.classList.add('measure-mode'); // Use crosshair
-        if (infoCople) infoCople.style.display = 'flex';
+        if (tool === 'cople' && infoCople) infoCople.style.display = 'flex';
+        else if (infoCople) infoCople.style.display = 'none';
     } else {
         if (infoCople) infoCople.style.display = 'none';
     }
@@ -536,6 +537,71 @@ function handleMeasureClick(e) {
     drawDxf();
 }
 
+// ─── Delete mode logic ───
+function handleDeleteClick(e) {
+    if (currentTool !== 'delete') return;
+    
+    // We do collision detection in screen coordinates because measurements/couplings are drawn with fixed screen pixel sizes
+    const clickScreen = {
+        x: e.clientX - canvas.getBoundingClientRect().left,
+        y: e.clientY - canvas.getBoundingClientRect().top
+    };
+    
+    const clickDxf = screenToDxf(e.clientX, e.clientY);
+    const maxScreenDistSq = 15 * 15;
+    
+    let deletedSomething = false;
+    
+    // 1. Check measurements
+    for (let i = measurements.length - 1; i >= 0; i--) {
+        const m = measurements[i];
+        const p1s = dxfToScreen(m.p1.x, m.p1.y);
+        const p2s = dxfToScreen(m.p2.x, m.p2.y);
+        
+        // Check distance to line segment
+        const dSq = distToSegmentSquaredScreen(clickScreen, p1s, p2s);
+        
+        // Also check distance to text label center
+        const midX = (p1s.x + p2s.x) / 2;
+        const midY = (p1s.y + p2s.y) / 2;
+        const distToCenterSq = (clickScreen.x - midX)**2 + (clickScreen.y - midY)**2;
+        
+        if (dSq < maxScreenDistSq || distToCenterSq < maxScreenDistSq * 2) {
+            measurements.splice(i, 1);
+            deletedSomething = true;
+            break; // Delete one at a time
+        }
+    }
+    
+    if (!deletedSomething) {
+        // 2. Check virtual couplings
+        for (let i = virtualCouplings.length - 1; i >= 0; i--) {
+            const c = virtualCouplings[i];
+            const p = dxfToScreen(c.x, c.y);
+            const dSq = (clickScreen.x - p.x)**2 + (clickScreen.y - p.y)**2;
+            if (dSq < maxScreenDistSq) {
+                virtualCouplings.splice(i, 1);
+                deletedSomething = true;
+                break;
+            }
+        }
+    }
+    
+    if (deletedSomething) {
+        drawDxf();
+        // If BOM is open, we could refresh it, but the user has to click it again anyway.
+    }
+}
+
+function distToSegmentSquaredScreen(p, v, w) {
+    const l2 = (v.x - w.x)**2 + (v.y - w.y)**2;
+    if (l2 === 0) return (p.x - v.x)**2 + (p.y - v.y)**2;
+    let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    const proj = { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) };
+    return (p.x - proj.x)**2 + (p.y - proj.y)**2;
+}
+
 // ══════════════════════════════════════════════════
 //  COPLE ARRAY TOOL
 // ══════════════════════════════════════════════════
@@ -771,6 +837,10 @@ canvas.addEventListener('mousedown', (e) => {
     }
     if (currentTool === 'cople') {
         handleCopleClick(e);
+        return;
+    }
+    if (currentTool === 'delete') {
+        handleDeleteClick(e);
         return;
     }
     if (currentTool === 'pan') {
