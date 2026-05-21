@@ -34,10 +34,11 @@ export function setupAnnotations() {
     document.getElementById('btn-sum').addEventListener('click', (e) => setMode('sum', e.target.closest('.btn')));
     
     // ─── Symbols ───
-    document.getElementById('btn-sym-tee').addEventListener('click', () => addSymbol('tee'));
-    document.getElementById('btn-sym-codo').addEventListener('click', () => addSymbol('codo'));
-    document.getElementById('btn-sym-reductor').addEventListener('click', () => addSymbol('reductor'));
-    document.getElementById('btn-sym-brida').addEventListener('click', () => addSymbol('brida'));
+    document.getElementById('btn-sym-tee').addEventListener('click', (e) => setMode('sym-tee', e.target.closest('.btn')));
+    document.getElementById('btn-sym-codo').addEventListener('click', (e) => setMode('sym-codo', e.target.closest('.btn')));
+    document.getElementById('btn-sym-reductor').addEventListener('click', (e) => setMode('sym-reductor', e.target.closest('.btn')));
+    document.getElementById('btn-sym-brida').addEventListener('click', (e) => setMode('sym-brida', e.target.closest('.btn')));
+    document.getElementById('btn-sym-move').addEventListener('click', (e) => setMode('sym-move', e.target.closest('.btn')));
     
     // Allow deleting Fabric objects with Backspace/Delete keys
     window.addEventListener('keydown', (e) => {
@@ -109,6 +110,10 @@ export function setupAnnotations() {
             text.enterEditing();
             text.selectAll();
             setMode('pan', document.getElementById('btn-pan'));
+        } else if (currentMode && currentMode.startsWith('sym-')) {
+            const pointer = fCanvas.getPointer(o.e);
+            placeSymbolAt(currentMode.split('-')[1], pointer.x, pointer.y);
+            setMode('pan', document.getElementById('btn-pan'));
         }
     });
 
@@ -152,53 +157,35 @@ export function setupAnnotations() {
 }
 
 // ─── Piping Symbols ───
-function addSymbol(type) {
+function placeSymbolAt(type, screenX, screenY) {
     if (!window.screenToDxf) return;
     
-    // Center of screen
-    const cx = fCanvas.width / 2;
-    const cy = fCanvas.height / 2;
-    const dxfPt = window.screenToDxf(cx, cy);
-    
+    const dxfPt = window.screenToDxf(screenX, screenY);
     const color = '#06b6d4'; // Cyan default
     let obj;
     
     // We create simple SVG paths for symbols
     if (type === 'tee') {
-        // Tee shape
-        obj = new fabric.Path('M -15 0 L 15 0 M 0 0 L 0 20', {
-            stroke: color, strokeWidth: 3, fill: 'transparent'
-        });
+        obj = new fabric.Path('M -15 0 L 15 0 M 0 0 L 0 20', { stroke: color, strokeWidth: 3, fill: 'transparent' });
     } else if (type === 'codo') {
-        // Elbow 90 deg
-        obj = new fabric.Path('M -10 -10 L -10 10 L 10 10', {
-            stroke: color, strokeWidth: 3, fill: 'transparent'
-        });
+        obj = new fabric.Path('M -10 -10 L -10 10 L 10 10', { stroke: color, strokeWidth: 3, fill: 'transparent' });
     } else if (type === 'reductor') {
-        // Reducer (trapezoid)
-        obj = new fabric.Polygon([
-            {x: -15, y: -10}, {x: 15, y: -5}, {x: 15, y: 5}, {x: -15, y: 10}
-        ], {
-            stroke: color, strokeWidth: 2, fill: 'transparent'
-        });
+        obj = new fabric.Polygon([ {x: -15, y: -10}, {x: 15, y: -5}, {x: 15, y: 5}, {x: -15, y: 10} ], { stroke: color, strokeWidth: 2, fill: 'transparent' });
     } else if (type === 'brida') {
-        // Flange (two parallel lines)
-        obj = new fabric.Path('M -5 -15 L -5 15 M 5 -15 L 5 15', {
-            stroke: color, strokeWidth: 3, fill: 'transparent'
-        });
+        obj = new fabric.Path('M -5 -15 L -5 15 M 5 -15 L 5 15', { stroke: color, strokeWidth: 3, fill: 'transparent' });
     }
     
     if (obj) {
         obj.set({
-            left: cx,
-            top: cy,
+            left: screenX,
+            top: screenY,
             originX: 'center',
             originY: 'center',
             cornerColor: '#fbbf24',
             cornerStrokeColor: '#fbbf24',
             borderColor: '#fbbf24',
             transparentCorners: false,
-            snapAngle: 90, // Snap to 90 degrees
+            snapAngle: 90,
             snapThreshold: 10
         });
         
@@ -208,16 +195,13 @@ function addSymbol(type) {
         obj.baseScaleX = obj.scaleX;
         obj.baseScaleY = obj.scaleY;
         
-        // Sync scale with current viewState.scale
         if (window.viewStateScale) {
-            // Need a reference to initial zoom to scale correctly
-            // Let's just store the dxfScale it was created at
             obj.createdDxfScale = window.viewStateScale;
         }
         
         fCanvas.add(obj);
         fCanvas.setActiveObject(obj);
-        setMode('pan', document.getElementById('btn-pan'));
+        fCanvas.renderAll();
     }
 }
 
@@ -339,11 +323,15 @@ export function setMode(mode, btnElement) {
         fCanvas.freeDrawingBrush.color = '#eab308';
         fCanvas.freeDrawingBrush.width = 4;
         if (fabricWrapper) fabricWrapper.style.pointerEvents = 'auto';
+    } else if (mode === 'sym-move') {
+        fCanvas.forEachObject(obj => obj.set('selectable', true));
+        if (fabricWrapper) fabricWrapper.style.pointerEvents = 'auto';
     } else if (mode === 'pan' || mode === 'measure' || mode === 'cople' || mode === 'delete' || mode === 'sum') {
         // In pan/measure/cople/delete/sum mode, let clicks pass through to the DXF canvas
         fCanvas.forEachObject(obj => obj.set('selectable', mode === 'pan'));
         if (fabricWrapper) fabricWrapper.style.pointerEvents = 'none';
     } else {
+        // 'rect', 'text', 'sym-tee', etc. (waiting for click)
         fCanvas.forEachObject(obj => obj.set('selectable', false));
         if (fabricWrapper) fabricWrapper.style.pointerEvents = 'auto';
     }
