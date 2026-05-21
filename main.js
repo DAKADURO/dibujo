@@ -24,6 +24,7 @@ let currentTool = 'pan';
 let currentSnapPoint = null;
 let currentMousePt = null;
 let currentFileName = '';
+let currentMeasureColor = '#06b6d4';
 
 // ─── Cople Array State ───
 export const virtualCouplings = [];
@@ -412,9 +413,11 @@ function drawMeasurements() {
         const dPad = Math.max(2, 6 * scaleFactor);
         
         const isSelected = m.selected;
-        const color = isSelected ? '#fbbf24' : '#06b6d4'; // Amber if selected, Cyan if not
-        const bgColor = isSelected ? 'rgba(251, 191, 36, 0.15)' : 'rgba(6, 182, 212, 0.15)';
-        const strokeColor = isSelected ? 'rgba(251, 191, 36, 0.5)' : 'rgba(6, 182, 212, 0.5)';
+        const baseColor = m.color || '#06b6d4';
+        
+        const color = isSelected ? '#fbbf24' : baseColor; // Amber if selected
+        const bgColor = isSelected ? 'rgba(251, 191, 36, 0.15)' : hexToRgba(baseColor, 0.15);
+        const strokeColor = isSelected ? 'rgba(251, 191, 36, 0.5)' : hexToRgba(baseColor, 0.5);
         
         // Dimension line
         ctx.strokeStyle = color;
@@ -557,15 +560,16 @@ function handleMeasureClick(e) {
         const mv = document.getElementById('measure-value');
         if (mv) mv.textContent = 'Selecciona 2° punto...';
     } else {
-        // Second click — complete measurement
+        // Second click — Save measurement
         const dx = pt.x - measurePending.x;
         const dy = pt.y - measurePending.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
-        measurements.push({
-            p1: { ...measurePending },
-            p2: { ...pt },
-            distance: distance
+        measurements.push({ 
+            p1: { ...measurePending }, 
+            p2: { ...pt }, 
+            distance: distance,
+            color: currentMeasureColor
         });
         
         const mv = document.getElementById('measure-value');
@@ -827,12 +831,40 @@ document.getElementById('btn-clear-measures')?.addEventListener('click', () => {
     drawDxf();
 });
 
+// ─── Color Picker Logic ───
+document.getElementById('measure-color-picker')?.addEventListener('input', (e) => {
+    currentMeasureColor = e.target.value;
+    
+    // If in sum mode, apply color to selected measurements
+    if (currentTool === 'sum') {
+        let changed = false;
+        measurements.forEach(m => {
+            if (m.selected) {
+                m.color = currentMeasureColor;
+                changed = true;
+            }
+        });
+        if (changed) {
+            saveAnnotations();
+            drawDxf();
+        }
+    }
+});
+
+function hexToRgba(hex, alpha) {
+    if (!hex) return `rgba(6, 182, 212, ${alpha})`;
+    const r = parseInt(hex.slice(1, 3), 16) || 6;
+    const g = parseInt(hex.slice(3, 5), 16) || 182;
+    const b = parseInt(hex.slice(5, 7), 16) || 212;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 // ─── Persistence Logic ───
 function saveAnnotations() {
     if (!currentFileName) return;
     const data = {
         measurements: measurements.map(m => ({
-            p1: m.p1, p2: m.p2, distance: m.distance
+            p1: m.p1, p2: m.p2, distance: m.distance, color: m.color
         })), // Strip out 'selected' state so it doesn't persist visual selection
         couplings: virtualCouplings
     };

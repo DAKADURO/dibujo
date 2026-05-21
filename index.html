@@ -26,9 +26,12 @@
                 <button class="btn tool-btn active" id="btn-pan" title="Mover lienzo">
                     <span>✋</span> Paneo
                 </button>
-                <button class="btn tool-btn" id="btn-measure" title="Medir distancia entre dos puntos">
-                    <span>📐</span> Medir
-                </button>
+                <div style="display:flex; gap:6px;">
+                    <button class="btn tool-btn" id="btn-measure" title="Medir distancia entre dos puntos" style="flex:1;">
+                        <span>📐</span> Medir
+                    </button>
+                    <input type="color" id="measure-color-picker" value="#06b6d4" title="Color de cotas" style="width:36px; height:36px; padding:0; border:1px solid var(--glass-border); border-radius:6px; cursor:pointer; background:transparent;">
+                </div>
                 <button class="btn tool-btn" id="btn-draw" title="Dibujar libre">
                     <span>✏️</span> Dibujar
                 </button>
