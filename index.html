@@ -82,24 +82,6 @@
                 <div style="display: flex; gap: 6px; margin-top: 8px;">
                     <button class="btn tool-btn" id="btn-sym-move" title="Mover y rotar símbolos" style="flex: 1;">
                         <span>👆</span> Mover / Rotar
-                    </button>
-                    <input type="color" id="sym-color-picker" value="#06b6d4" title="Color de símbolos" style="width:36px; height:36px; padding:0; border:1px solid var(--glass-border); border-radius:6px; cursor:pointer; background:transparent;">
-                </div>
-            <div class="tool-section" id="sym-properties" style="display: none; padding-top: 12px; border-top: 1px solid var(--glass-border); margin-top: 12px;">
-                <h3 style="margin-top: 0;">Propiedades</h3>
-                <div style="display: flex; gap: 8px;">
-                    <div style="flex: 1;">
-                        <label style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 4px;">Diam. Principal</label>
-                        <input type="text" id="sym-d1" style="width: 100%; background: transparent; color: white; border: 1px solid var(--glass-border); border-radius: 4px; padding: 4px 6px; font-size: 12px; outline: none;" placeholder="Ej: 4&quot;">
-                    </div>
-                    <div style="flex: 1;">
-                        <label style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 4px;">Diam. Reducción</label>
-                        <input type="text" id="sym-d2" style="width: 100%; background: transparent; color: white; border: 1px solid var(--glass-border); border-radius: 4px; padding: 4px 6px; font-size: 12px; outline: none;" placeholder="Ej: 2&quot;">
-                    </div>
-                </div>
-            </div>
-        </div>
-
             <div class="tool-section">
                 <h3>Análisis</h3>
                 <button class="btn" id="btn-bom" title="Generar listado de materiales">
@@ -191,6 +173,48 @@
         <div id="loading" class="hidden">
             <div class="spinner"></div>
             <p>Procesando DXF...</p>
+        </div>
+    </div>
+
+    <div id="floating-sym-props" class="glass-panel" style="display: none; position: absolute; padding: 12px; border-radius: 8px; z-index: 1000; box-shadow: 0 8px 32px rgba(0,0,0,0.5); font-family: 'Inter', sans-serif; pointer-events: auto;">
+        <div style="font-size: 12px; margin-bottom: 8px; font-weight: bold; color: var(--text-light);">Diámetros</div>
+        <div style="display: flex; gap: 8px;">
+            <div>
+                <label style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 4px;">Principal</label>
+                <select id="float-d1" style="font-size: 12px; padding: 4px 6px; outline: none; background: rgba(0,0,0,0.4); color: white; border: 1px solid var(--glass-border); border-radius: 4px; cursor: pointer; min-width: 60px;">
+                    <option value="" style="color: black;">-</option>
+                    <option value="1/2&quot;" style="color: black;">1/2"</option>
+                    <option value="3/4&quot;" style="color: black;">3/4"</option>
+                    <option value="1&quot;" style="color: black;">1"</option>
+                    <option value="1 1/4&quot;" style="color: black;">1 1/4"</option>
+                    <option value="1 1/2&quot;" style="color: black;">1 1/2"</option>
+                    <option value="2&quot;" style="color: black;">2"</option>
+                    <option value="2 1/2&quot;" style="color: black;">2 1/2"</option>
+                    <option value="3&quot;" style="color: black;">3"</option>
+                    <option value="4&quot;" style="color: black;">4"</option>
+                    <option value="6&quot;" style="color: black;">6"</option>
+                    <option value="8&quot;" style="color: black;">8"</option>
+                    <option value="10&quot;" style="color: black;">10"</option>
+                </select>
+            </div>
+            <div id="float-d2-container">
+                <label style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 4px;">Reducción</label>
+                <select id="float-d2" style="font-size: 12px; padding: 4px 6px; outline: none; background: rgba(0,0,0,0.4); color: white; border: 1px solid var(--glass-border); border-radius: 4px; cursor: pointer; min-width: 60px;">
+                    <option value="" style="color: black;">-</option>
+                    <option value="1/2&quot;" style="color: black;">1/2"</option>
+                    <option value="3/4&quot;" style="color: black;">3/4"</option>
+                    <option value="1&quot;" style="color: black;">1"</option>
+                    <option value="1 1/4&quot;" style="color: black;">1 1/4"</option>
+                    <option value="1 1/2&quot;" style="color: black;">1 1/2"</option>
+                    <option value="2&quot;" style="color: black;">2"</option>
+                    <option value="2 1/2&quot;" style="color: black;">2 1/2"</option>
+                    <option value="3&quot;" style="color: black;">3"</option>
+                    <option value="4&quot;" style="color: black;">4"</option>
+                    <option value="6&quot;" style="color: black;">6"</option>
+                    <option value="8&quot;" style="color: black;">8"</option>
+                    <option value="10&quot;" style="color: black;">10"</option>
+                </select>
+            </div>
         </div>
     </div>
     

@@ -641,28 +641,37 @@ function handleMeasureClick(e) {
     drawDxf();
 }
 
-function updateSymbolPropertiesUI() {
-    const panel = document.getElementById('sym-properties');
+function updateSymbolPropertiesUI(x, y) {
+    const panel = document.getElementById('floating-sym-props');
     if (!panel) return;
     
     if (selectedSymbolIndex >= 0) {
         const sym = pipingSymbols[selectedSymbolIndex];
         panel.style.display = 'block';
-        const d1Input = document.getElementById('sym-d1');
-        const d2Input = document.getElementById('sym-d2');
+        
+        if (x !== undefined && y !== undefined) {
+            panel.style.left = (x + 20) + 'px';
+            panel.style.top = (y + 20) + 'px';
+        }
+        
+        const d1Input = document.getElementById('float-d1');
+        const d2Input = document.getElementById('float-d2');
+        const d2Container = document.getElementById('float-d2-container');
+        
         if (d1Input) d1Input.value = sym.d1 || '';
         
         if (sym.type === 'codo') {
-            if (d2Input) { d2Input.value = ''; d2Input.disabled = true; d2Input.style.opacity = '0.5'; }
+            if (d2Container) d2Container.style.display = 'none';
         } else {
-            if (d2Input) { d2Input.value = sym.d2 || ''; d2Input.disabled = false; d2Input.style.opacity = '1'; }
+            if (d2Container) d2Container.style.display = 'block';
+            if (d2Input) d2Input.value = sym.d2 || '';
         }
     } else {
         panel.style.display = 'none';
     }
 }
 
-document.getElementById('sym-d1')?.addEventListener('input', (e) => {
+document.getElementById('float-d1')?.addEventListener('change', (e) => {
     if (selectedSymbolIndex >= 0) {
         pipingSymbols[selectedSymbolIndex].d1 = e.target.value;
         saveAnnotations();
@@ -670,7 +679,7 @@ document.getElementById('sym-d1')?.addEventListener('input', (e) => {
     }
 });
 
-document.getElementById('sym-d2')?.addEventListener('input', (e) => {
+document.getElementById('float-d2')?.addEventListener('change', (e) => {
     if (selectedSymbolIndex >= 0) {
         pipingSymbols[selectedSymbolIndex].d2 = e.target.value;
         saveAnnotations();
@@ -1288,7 +1297,7 @@ canvas.addEventListener('mousedown', (e) => {
             symDragging = true;
             symDragLastX = e.clientX;
             symDragLastY = e.clientY;
-            updateSymbolPropertiesUI();
+            updateSymbolPropertiesUI(e.clientX, e.clientY);
             drawDxf();
             return; // Intercepted the click for symbol, don't pan
         } else {
@@ -1397,7 +1406,7 @@ window.addEventListener('keydown', (e) => {
             e.preventDefault();
             pipingSymbols.splice(selectedSymbolIndex, 1);
             selectedSymbolIndex = -1;
-            updateSymbolPropertiesUI();
+            updateSymbolPropertiesUI(); // Will hide it
             saveAnnotations();
             drawDxf();
         }
