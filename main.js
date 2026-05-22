@@ -785,8 +785,16 @@ function drawCouplings() {
         const p = dxfToScreen(c.x, c.y);
         ctx.save();
         ctx.translate(p.x, p.y);
-        // Angle comes from DXF, we need to invert Y for screen coords
-        ctx.rotate(-c.angle);
+        
+        if (c.angle !== undefined) {
+            ctx.rotate(-c.angle);
+        }
+        
+        ctx.fillStyle = c.color || document.getElementById('cople-color-picker')?.value || '#ef4444'; // Default Red or selected color
+        
+        // Scale down at lower zoom
+        const scaleFactor = Math.max(0.3, Math.min(1.5, viewState.scale / 1.5));
+        ctx.scale(scaleFactor, scaleFactor);
         
         ctx.fillRect(-width/2, -height/2, width, height);
         ctx.strokeRect(-width/2, -height/2, width, height);
@@ -813,11 +821,16 @@ function drawSymbols() {
         ctx.translate(sp.x, sp.y);
         ctx.rotate(sym.angle || 0);
         
-        const color = sym.selected ? '#fbbf24' : '#06b6d4';
-        ctx.strokeStyle = color;
+        const baseColor = sym.selected ? '#fbbf24' : (sym.color || '#06b6d4');
+        ctx.strokeStyle = baseColor;
         ctx.lineWidth = 2.5;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
+        
+        // Scale down symbol visually when zoomed out
+        const scaleFactor = Math.max(0.4, Math.min(1.5, viewState.scale / 1.5));
+        ctx.scale(scaleFactor, scaleFactor);
+        
         const s = SYM_SIZE;
         
         ctx.beginPath();
@@ -838,9 +851,8 @@ function drawSymbols() {
         ctx.stroke();
         
         // Label
-        ctx.scale(1, 1);
         ctx.font = 'bold 10px "Inter", sans-serif';
-        ctx.fillStyle = color;
+        ctx.fillStyle = baseColor;
         ctx.textAlign = 'center';
         ctx.fillText(sym.type.charAt(0).toUpperCase() + sym.type.slice(1), 0, -s - 4);
         
@@ -931,10 +943,14 @@ function handleCopleClick(e) {
                 const copleX = pA.x + dx * t;
                 const copleY = pA.y + dy * t;
                 
+                const angle = Math.atan2(dy, dx);
+                
                 virtualCouplings.push({ 
                     x: copleX, 
                     y: copleY, 
-                    matrixId 
+                    matrixId,
+                    angle: angle,
+                    color: document.getElementById('cople-color-picker')?.value || '#ef4444'
                 });
                 
                 generated++;
@@ -1203,7 +1219,9 @@ canvas.addEventListener('mousedown', (e) => {
         const cy = e.clientY - rect.top;
         const dxfPt = currentSnapPoint ? { ...currentSnapPoint } : canvasToDxf(cx, cy);
         const symType = currentTool.replace('sym-', '');
-        pipingSymbols.push({ type: symType, dxfX: dxfPt.x, dxfY: dxfPt.y, angle: 0, selected: false });
+        const picker = document.getElementById('sym-color-picker');
+        const symColor = picker ? picker.value : '#06b6d4';
+        pipingSymbols.push({ type: symType, dxfX: dxfPt.x, dxfY: dxfPt.y, angle: 0, selected: false, color: symColor });
         saveAnnotations();
         drawDxf();
         setMode('pan', document.getElementById('btn-pan'));

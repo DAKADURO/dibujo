@@ -49,9 +49,12 @@
                 <button class="btn tool-btn" id="btn-text" title="Agregar texto">
                     <span>📝</span> Texto
                 </button>
-                <button class="btn tool-btn" id="btn-cople" title="Matriz de coples en línea">
-                    <span>⛓️</span> Matriz Coples
-                </button>
+                <div style="display:flex; gap:6px;">
+                    <button class="btn tool-btn" id="btn-cople" title="Matriz de coples en línea" style="flex:1;">
+                        <span>⛓️</span> Matriz Coples
+                    </button>
+                    <input type="color" id="cople-color-picker" value="#ef4444" title="Color de coples" style="width:36px; height:36px; padding:0; border:1px solid var(--glass-border); border-radius:6px; cursor:pointer; background:transparent;">
+                </div>
                 <button class="btn tool-btn" id="btn-sum" title="Sumar cotas seleccionadas">
                     <span>∑</span> Sumar Cotas
                 </button>
@@ -76,9 +79,12 @@
                         <span>⏸</span> Brida
                     </button>
                 </div>
-                <button class="btn tool-btn" id="btn-sym-move" title="Mover y rotar símbolos" style="margin-top: 8px;">
-                    <span>👆</span> Mover / Rotar
-                </button>
+                <div style="display: flex; gap: 6px; margin-top: 8px;">
+                    <button class="btn tool-btn" id="btn-sym-move" title="Mover y rotar símbolos" style="flex: 1;">
+                        <span>👆</span> Mover / Rotar
+                    </button>
+                    <input type="color" id="sym-color-picker" value="#06b6d4" title="Color de símbolos" style="width:36px; height:36px; padding:0; border:1px solid var(--glass-border); border-radius:6px; cursor:pointer; background:transparent;">
+                </div>
             </div>
 
             <div class="tool-section">
