@@ -110,10 +110,6 @@ export function setupAnnotations() {
             text.enterEditing();
             text.selectAll();
             setMode('pan', document.getElementById('btn-pan'));
-        } else if (currentMode && currentMode.startsWith('sym-')) {
-            const pointer = fCanvas.getPointer(o.e);
-            placeSymbolAt(currentMode.split('-')[1], pointer.x, pointer.y);
-            setMode('pan', document.getElementById('btn-pan'));
         }
     });
 
@@ -157,10 +153,11 @@ export function setupAnnotations() {
 }
 
 // ─── Piping Symbols ───
-function placeSymbolAt(type, screenX, screenY) {
-    if (!window.canvasToDxf) return;
+// Called by main.js from the dxf-canvas click handler (canvas-relative coords)
+export function placeSymbolAt(type, canvasX, canvasY) {
+    if (!fCanvas || !window.canvasToDxf) return;
     
-    const dxfPt = window.canvasToDxf(screenX, screenY);
+    const dxfPt = window.canvasToDxf(canvasX, canvasY);
     const color = '#06b6d4'; // Cyan default
     let obj;
     
@@ -177,10 +174,11 @@ function placeSymbolAt(type, screenX, screenY) {
     
     if (obj) {
         obj.set({
-            left: screenX,
-            top: screenY,
+            left: canvasX,
+            top: canvasY,
             originX: 'center',
             originY: 'center',
+            selectable: true,
             cornerColor: '#fbbf24',
             cornerStrokeColor: '#fbbf24',
             borderColor: '#fbbf24',
@@ -326,14 +324,15 @@ export function setMode(mode, btnElement) {
     } else if (mode === 'sym-move') {
         fCanvas.forEachObject(obj => obj.set('selectable', true));
         if (fabricWrapper) fabricWrapper.style.pointerEvents = 'auto';
-    } else if (mode === 'pan' || mode === 'measure' || mode === 'cople' || mode === 'delete' || mode === 'sum') {
-        // In pan/measure/cople/delete/sum mode, let clicks pass through to the DXF canvas
-        fCanvas.forEachObject(obj => obj.set('selectable', mode === 'pan'));
-        if (fabricWrapper) fabricWrapper.style.pointerEvents = 'none';
-    } else {
-        // 'rect', 'text', 'sym-tee', etc. (waiting for click)
+    } else if (mode === 'rect' || mode === 'text') {
+        // rect/text need fabric to intercept the click
         fCanvas.forEachObject(obj => obj.set('selectable', false));
         if (fabricWrapper) fabricWrapper.style.pointerEvents = 'auto';
+    } else {
+        // pan, measure, cople, delete, sum, sym-tee/codo/reductor/brida
+        // let clicks pass through to the DXF canvas
+        fCanvas.forEachObject(obj => obj.set('selectable', mode === 'pan'));
+        if (fabricWrapper) fabricWrapper.style.pointerEvents = 'none';
     }
 }
 

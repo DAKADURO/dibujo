@@ -1,5 +1,5 @@
 import DxfParser from 'dxf-parser';
-import { setupAnnotations, resizeAnnotations, setToolChangeCallback } from './annotations.js';
+import { setupAnnotations, resizeAnnotations, setToolChangeCallback, setMode, placeSymbolAt } from './annotations.js';
 import { generateBOM, exportBOMtoCSV } from './bom.js';
 
 const dxfInput = document.getElementById('dxf-input');
@@ -1108,6 +1108,16 @@ canvas.addEventListener('mousedown', (e) => {
     }
     if (currentTool === 'sum') {
         handleSumClick(e);
+        return;
+    }
+    // ─── Symbol placement: click on DXF canvas ───
+    if (currentTool.startsWith('sym-') && currentTool !== 'sym-move') {
+        const rect = canvas.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        const symType = currentTool.replace('sym-', '');
+        placeSymbolAt(symType, cx, cy);
+        setMode('pan', document.getElementById('btn-pan'));
         return;
     }
     if (currentTool === 'pan') {
