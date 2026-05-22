@@ -7,6 +7,11 @@ const canvas = document.getElementById('dxf-canvas');
 const ctx = canvas.getContext('2d');
 const loading = document.getElementById('loading');
 
+window.addEventListener('error', (e) => {
+    if (e.message && e.message.includes('ResizeObserver')) return;
+    alert(`Error: ${e.message} \nLine: ${e.lineno}`);
+});
+
 let dxfData = null;
 export const viewState = {
     x: 0,
@@ -828,6 +833,7 @@ function drawCouplings() {
     ctx.lineWidth = 1;
     
     for (const c of virtualCouplings) {
+        if (c.x === undefined || c.y === undefined || isNaN(c.x) || isNaN(c.y)) continue;
         const p = dxfToScreen(c.x, c.y);
         ctx.save();
         ctx.translate(p.x, p.y);
@@ -838,9 +844,8 @@ function drawCouplings() {
         
         ctx.fillStyle = c.color || document.getElementById('cople-color-picker')?.value || '#ef4444'; // Default Red or selected color
         
-        // Scale down at lower zoom to avoid clutter
-        // Normal size at ~1500% zoom (scale 15). At 500% it will be 1/3 the size.
-        const scaleFactor = Math.min(1.0, viewState.scale / 15.0);
+        let scaleFactor = Math.min(1.0, viewState.scale / 15.0);
+        if (isNaN(scaleFactor) || scaleFactor <= 0.01) scaleFactor = 1.0;
         ctx.scale(scaleFactor, scaleFactor);
         
         ctx.fillRect(-width/2, -height/2, width, height);
@@ -863,8 +868,12 @@ function drawSymbols() {
     
     for (let i = 0; i < pipingSymbols.length; i++) {
         const sym = pipingSymbols[i];
+        if (!sym || sym.dxfX === undefined || sym.dxfY === undefined || isNaN(sym.dxfX) || isNaN(sym.dxfY)) continue;
+        
         const sp = dxfToScreen(sym.dxfX, sym.dxfY);
         ctx.save();
+        if (isNaN(sp.x) || isNaN(sp.y)) { ctx.restore(); continue; }
+        
         ctx.translate(sp.x, sp.y);
         ctx.rotate(sym.angle || 0);
         
@@ -875,7 +884,8 @@ function drawSymbols() {
         ctx.lineJoin = 'round';
         
         // Scale down symbol visually when zoomed out to avoid clutter
-        const scaleFactor = Math.min(1.0, viewState.scale / 15.0);
+        let scaleFactor = Math.min(1.0, viewState.scale / 15.0);
+        if (isNaN(scaleFactor) || scaleFactor <= 0.01) scaleFactor = 1.0;
         ctx.scale(scaleFactor, scaleFactor);
         
         const s = SYM_SIZE;
@@ -898,7 +908,10 @@ function drawSymbols() {
         ctx.stroke();
         
         // Label
-        let label = sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
+        let label = '';
+        if (sym.type) {
+            label = sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
+        }
         if (sym.d1 && sym.d2) {
             label += ` ${sym.d1}x${sym.d2}`;
         } else if (sym.d1) {
