@@ -41,6 +41,7 @@ let selectedSymbolIndex = -1;
 let symDragging = false;
 let symDragLastX = 0, symDragLastY = 0;
 let clipboardSymbol = null;
+let recentColors = [];
 
 // Clear clipboard when clicking any tool button so it doesn't interfere with new fresh symbols
 document.querySelectorAll('.tool-btn').forEach(btn => {
@@ -711,6 +712,58 @@ document.getElementById('float-color')?.addEventListener('input', (e) => {
     }
 });
 
+function addRecentColor(color) {
+    if (!color) return;
+    recentColors = recentColors.filter(c => c !== color);
+    recentColors.unshift(color);
+    if (recentColors.length > 8) recentColors.pop();
+    renderRecentColors();
+}
+
+function renderRecentColors() {
+    const wrapper = document.getElementById('recent-colors-wrapper');
+    const container = document.getElementById('recent-colors-container');
+    if (!wrapper || !container) return;
+    
+    if (recentColors.length === 0) {
+        wrapper.style.display = 'none';
+        return;
+    }
+    
+    wrapper.style.display = 'block';
+    container.innerHTML = '';
+    
+    recentColors.forEach(color => {
+        const swatch = document.createElement('div');
+        swatch.style.width = '18px';
+        swatch.style.height = '18px';
+        swatch.style.borderRadius = '50%';
+        swatch.style.backgroundColor = color;
+        swatch.style.cursor = 'pointer';
+        swatch.style.border = '1px solid var(--glass-border)';
+        swatch.addEventListener('click', () => {
+            const colorInput = document.getElementById('float-color');
+            if (colorInput) colorInput.value = color;
+            if (selectedSymbolIndex >= 0) {
+                pipingSymbols[selectedSymbolIndex].color = color;
+                saveAnnotations();
+                requestDrawDxf();
+            }
+        });
+        container.appendChild(swatch);
+    });
+}
+
+document.getElementById('float-color')?.addEventListener('change', (e) => {
+    addRecentColor(e.target.value);
+    saveAnnotations();
+});
+
+document.getElementById('sym-color-picker')?.addEventListener('change', (e) => {
+    addRecentColor(e.target.value);
+    saveAnnotations();
+});
+
 // ─── Delete mode logic ───
 function handleDeleteClick(e) {
     if (currentTool !== 'delete') return;
@@ -1155,6 +1208,7 @@ function saveAnnotations() {
         })),
         couplings: virtualCouplings,
         unit: currentUnit,
+        recentColors: recentColors,
         symbols: pipingSymbols.map(s => ({ 
             type: s.type, 
             dxfX: s.dxfX, 
@@ -1192,6 +1246,10 @@ function loadAnnotations() {
             if (data.symbols) {
                 pipingSymbols.length = 0;
                 data.symbols.forEach(s => pipingSymbols.push({ ...s, selected: false }));
+            }
+            if (data.recentColors) {
+                recentColors = data.recentColors;
+                renderRecentColors();
             }
         }
     } catch(e) {
@@ -1328,6 +1386,7 @@ canvas.addEventListener('mousedown', (e) => {
             const picker = document.getElementById('sym-color-picker');
             const symColor = picker ? picker.value : '#06b6d4';
             newSym = { type: symType, dxfX: dxfPt.x, dxfY: dxfPt.y, angle: 0, selected: false, color: symColor };
+            addRecentColor(symColor);
         }
         
         pipingSymbols.push(newSym);
