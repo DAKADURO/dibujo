@@ -42,7 +42,7 @@ const TEXT_LAYERS = ['TEXTO', 'TEXTO2', 'T2TXT03', 'T4TXT07', 'FORTLUFT'];
  * @param {Array} virtualCouplings — virtual couplings created by the matrix tool
  * @returns {Object} { valves, fittings, instruments, pipeSpecs, pipeLengths }
  */
-export function generateBOM(dxfData, virtualCouplings = []) {
+export function generateBOM(dxfData, virtualCouplings = [], pipingSymbols = []) {
     if (!dxfData || !dxfData.entities) return null;
 
     const result = {
@@ -159,6 +159,33 @@ export function generateBOM(dxfData, virtualCouplings = []) {
             layer: 'Virtual', 
             count: virtualCouplings.length 
         };
+    }
+    
+    // Add manual piping symbols
+    if (pipingSymbols && pipingSymbols.length > 0) {
+        for (const sym of pipingSymbols) {
+            if (!sym.type) continue;
+            
+            let label = sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
+            if (sym.d1 && sym.d2) {
+                label += ` ${sym.d1}x${sym.d2}`;
+            } else if (sym.d1) {
+                label += ` ${sym.d1}`;
+            } else if (sym.d2) {
+                label += ` ${sym.d2}`;
+            }
+            
+            const key = `Manual_${sym.type}_${label}`;
+            if (!fittingCounts[key]) {
+                fittingCounts[key] = {
+                    description: label,
+                    type: sym.type.charAt(0).toUpperCase() + sym.type.slice(1),
+                    layer: 'Anotación Manual',
+                    count: 0
+                };
+            }
+            fittingCounts[key].count++;
+        }
     }
     
     result.fittings = Object.values(fittingCounts);

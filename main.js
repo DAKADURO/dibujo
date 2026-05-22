@@ -1201,7 +1201,7 @@ document.getElementById('btn-bom')?.addEventListener('click', () => {
         return;
     }
     
-    bomData = generateBOM(dxfData, virtualCouplings);
+    bomData = generateBOM(dxfData, virtualCouplings, pipingSymbols);
     if (!bomData || bomData.summary.length === 0) {
         alert('No se encontraron elementos de tubería en el archivo.');
         return;
