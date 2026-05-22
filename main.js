@@ -213,13 +213,13 @@ function hexToAci(hex) {
 function dxfLine(x1, y1, x2, y2, colorHex) {
     const c = hexToAci(colorHex);
     const h = getNextDxfHandle();
-    return `  0\r\nLINE\r\n  5\r\n${h}\r\n  8\r\nAnotaciones\r\n 62\r\n${c}\r\n 10\r\n${x1.toFixed(4)}\r\n 20\r\n${y1.toFixed(4)}\r\n 30\r\n0.0\r\n 11\r\n${x2.toFixed(4)}\r\n 21\r\n${y2.toFixed(4)}\r\n 31\r\n0.0\r\n`;
+    return `  0\r\nLINE\r\n  5\r\n${h}\r\n100\r\nAcDbEntity\r\n  8\r\n0\r\n 62\r\n${c}\r\n100\r\nAcDbLine\r\n 10\r\n${x1.toFixed(4)}\r\n 20\r\n${y1.toFixed(4)}\r\n 30\r\n0.0\r\n 11\r\n${x2.toFixed(4)}\r\n 21\r\n${y2.toFixed(4)}\r\n 31\r\n0.0\r\n`;
 }
 
 function dxfText(text, x, y, height, colorHex) {
     const c = hexToAci(colorHex);
     const h = getNextDxfHandle();
-    return `  0\r\nTEXT\r\n  5\r\n${h}\r\n  8\r\nAnotaciones\r\n 62\r\n${c}\r\n 10\r\n${x.toFixed(4)}\r\n 20\r\n${y.toFixed(4)}\r\n 30\r\n0.0\r\n 40\r\n${height.toFixed(4)}\r\n  1\r\n${text}\r\n 72\r\n1\r\n 11\r\n${x.toFixed(4)}\r\n 21\r\n${y.toFixed(4)}\r\n 31\r\n0.0\r\n`;
+    return `  0\r\nTEXT\r\n  5\r\n${h}\r\n100\r\nAcDbEntity\r\n  8\r\n0\r\n 62\r\n${c}\r\n100\r\nAcDbText\r\n 10\r\n${x.toFixed(4)}\r\n 20\r\n${y.toFixed(4)}\r\n 30\r\n0.0\r\n 40\r\n${height.toFixed(4)}\r\n  1\r\n${text}\r\n`;
 }
 
 function rotatePt(cx, cy, px, py, angle) {
