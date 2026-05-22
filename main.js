@@ -182,20 +182,44 @@ document.getElementById('btn-export-dxf').addEventListener('click', () => {
     exportToDxf();
 });
 
-function hexToDxfColor(hex) {
-    if (!hex) return 0;
-    if (hex.startsWith('#')) hex = hex.substring(1);
-    return parseInt(hex, 16);
+let dxfHandleCounter = 0xF00000;
+function getNextDxfHandle() {
+    dxfHandleCounter++;
+    return dxfHandleCounter.toString(16).toUpperCase();
+}
+
+function hexToAci(hex) {
+    if (!hex) return 7;
+    hex = hex.toLowerCase();
+    if (hex.includes('06b6d4')) return 4;
+    if (hex.includes('ef4444')) return 1;
+    if (hex.includes('f59e0b')) return 40;
+    if (hex.includes('10b981')) return 3;
+    if (hex.includes('8b5cf6')) return 200;
+    if (hex.startsWith('#')) {
+        const r = parseInt(hex.slice(1,3), 16);
+        const g = parseInt(hex.slice(3,5), 16);
+        const b = parseInt(hex.slice(5,7), 16);
+        if (r>200 && g<100 && b<100) return 1; 
+        if (r>200 && g>200 && b<100) return 2; 
+        if (r<100 && g>200 && b<100) return 3; 
+        if (r<100 && g>200 && b>200) return 4; 
+        if (r<100 && g<100 && b>200) return 5; 
+        if (r>200 && g<100 && b>200) return 6; 
+    }
+    return 7;
 }
 
 function dxfLine(x1, y1, x2, y2, colorHex) {
-    const c = hexToDxfColor(colorHex);
-    return `  0\nLINE\n  8\nAnotaciones\n 420\n${c}\n 10\n${x1}\n 20\n${y1}\n 30\n0.0\n 11\n${x2}\n 21\n${y2}\n 31\n0.0\n`;
+    const c = hexToAci(colorHex);
+    const h = getNextDxfHandle();
+    return `  0\r\nLINE\r\n  5\r\n${h}\r\n  8\r\nAnotaciones\r\n 62\r\n${c}\r\n 10\r\n${x1.toFixed(4)}\r\n 20\r\n${y1.toFixed(4)}\r\n 30\r\n0.0\r\n 11\r\n${x2.toFixed(4)}\r\n 21\r\n${y2.toFixed(4)}\r\n 31\r\n0.0\r\n`;
 }
 
 function dxfText(text, x, y, height, colorHex) {
-    const c = hexToDxfColor(colorHex);
-    return `  0\nTEXT\n  8\nAnotaciones\n 420\n${c}\n 10\n${x}\n 20\n${y}\n 30\n0.0\n 40\n${height}\n  1\n${text}\n  72\n1\n 11\n${x}\n 21\n${y}\n 31\n0.0\n`; // Centered
+    const c = hexToAci(colorHex);
+    const h = getNextDxfHandle();
+    return `  0\r\nTEXT\r\n  5\r\n${h}\r\n  8\r\nAnotaciones\r\n 62\r\n${c}\r\n 10\r\n${x.toFixed(4)}\r\n 20\r\n${y.toFixed(4)}\r\n 30\r\n0.0\r\n 40\r\n${height.toFixed(4)}\r\n  1\r\n${text}\r\n 72\r\n1\r\n 11\r\n${x.toFixed(4)}\r\n 21\r\n${y.toFixed(4)}\r\n 31\r\n0.0\r\n`;
 }
 
 function rotatePt(cx, cy, px, py, angle) {
@@ -333,14 +357,14 @@ function exportToDxf() {
     }
     
     // 2. Inject customEntities into rawDxfContent before the ENDSEC of ENTITIES
-    const secStartIndex = rawDxfContent.toUpperCase().indexOf('ENTITIES');
-    if (secStartIndex === -1) {
+    const entitiesHeader = rawDxfContent.match(/2\s*(\r?\n)\s*ENTITIES/i);
+    if (!entitiesHeader) {
         alert('No se pudo encontrar la sección ENTITIES en el archivo original.');
         return;
     }
     
-    // Find the next ENDSEC after ENTITIES
-    const searchString = rawDxfContent.substring(secStartIndex);
+    const searchStartIndex = entitiesHeader.index + entitiesHeader[0].length;
+    const searchString = rawDxfContent.substring(searchStartIndex);
     const endsecMatch = searchString.match(/0\s*(\r?\n)\s*ENDSEC/i);
     
     if (!endsecMatch) {
@@ -348,7 +372,7 @@ function exportToDxf() {
         return;
     }
     
-    const injectionIndex = secStartIndex + endsecMatch.index;
+    const injectionIndex = searchStartIndex + endsecMatch.index;
     
     // Construct final DXF string
     const finalDxf = rawDxfContent.substring(0, injectionIndex) 
