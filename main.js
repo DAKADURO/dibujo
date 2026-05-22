@@ -1,5 +1,5 @@
 import DxfParser from 'dxf-parser';
-import { setupAnnotations, resizeAnnotations, setToolChangeCallback, setMode, placeSymbolAt } from './annotations.js';
+import { setupAnnotations, resizeAnnotations, setToolChangeCallback, setMode } from './annotations.js';
 import { generateBOM, exportBOMtoCSV } from './bom.js';
 
 const dxfInput = document.getElementById('dxf-input');
@@ -29,6 +29,12 @@ let currentUnit = 'mm';
 
 // ─── Cople Array State ───
 export const virtualCouplings = [];
+
+// ─── Piping Symbols State ───
+const pipingSymbols = []; // { type, dxfX, dxfY, angle, selected }
+let selectedSymbolIndex = -1;
+let symDragging = false;
+let symDragLastX = 0, symDragLastY = 0;
 
 // ─── BOM State ───
 let bomData = null;
@@ -243,8 +249,9 @@ function drawDxf() {
     // Draw overlays (in screen coords)
     drawCouplings();
     drawMeasurements();
+    drawSymbols();
     
-    // Sync Fabric.js Symbols
+    // Sync Fabric.js canvas (for draw/rect/text tools)
     if (window.syncFabricSymbols) {
         window.syncFabricSymbols(viewState.scale);
     }
@@ -785,6 +792,81 @@ function drawCouplings() {
     ctx.restore();
 }
 
+// ══════════════════════════════════════════════════
+//  PIPING SYMBOLS — drawn directly on DXF canvas
+// ══════════════════════════════════════════════════
+
+const SYM_SIZE = 14; // half-size in screen pixels
+
+function drawSymbols() {
+    if (pipingSymbols.length === 0) return;
+    ctx.save();
+    
+    for (let i = 0; i < pipingSymbols.length; i++) {
+        const sym = pipingSymbols[i];
+        const sp = dxfToScreen(sym.dxfX, sym.dxfY);
+        ctx.save();
+        ctx.translate(sp.x, sp.y);
+        ctx.rotate(sym.angle || 0);
+        
+        const color = sym.selected ? '#fbbf24' : '#06b6d4';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        const s = SYM_SIZE;
+        
+        ctx.beginPath();
+        if (sym.type === 'tee') {
+            ctx.moveTo(-s, 0); ctx.lineTo(s, 0);   // horizontal pipe
+            ctx.moveTo(0, 0);  ctx.lineTo(0, s);    // branch down
+        } else if (sym.type === 'codo') {
+            ctx.moveTo(-s, 0); ctx.lineTo(0, 0);    // horizontal
+            ctx.lineTo(0, s);                        // vertical
+        } else if (sym.type === 'reductor') {
+            ctx.moveTo(-s, -s * 0.6); ctx.lineTo(s, -s * 0.35);
+            ctx.lineTo(s, s * 0.35);  ctx.lineTo(-s, s * 0.6);
+            ctx.closePath();
+        } else if (sym.type === 'brida') {
+            ctx.moveTo(-s * 0.25, -s); ctx.lineTo(-s * 0.25, s);
+            ctx.moveTo(s * 0.25, -s);  ctx.lineTo(s * 0.25, s);
+        }
+        ctx.stroke();
+        
+        // Label
+        ctx.scale(1, 1);
+        ctx.font = 'bold 10px "Inter", sans-serif';
+        ctx.fillStyle = color;
+        ctx.textAlign = 'center';
+        ctx.fillText(sym.type.charAt(0).toUpperCase() + sym.type.slice(1), 0, -s - 4);
+        
+        // Selection ring
+        if (sym.selected) {
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.arc(0, 0, s + 5, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        
+        ctx.restore();
+    }
+    ctx.restore();
+}
+
+function findSymbolAt(cx, cy) {
+    const hitRadius = SYM_SIZE + 8;
+    for (let i = pipingSymbols.length - 1; i >= 0; i--) {
+        const sp = dxfToScreen(pipingSymbols[i].dxfX, pipingSymbols[i].dxfY);
+        const dist = Math.hypot(cx - sp.x, cy - sp.y);
+        if (dist < hitRadius) return i;
+    }
+    return -1;
+}
+
+
 function handleCopleClick(e) {
     if (currentTool !== 'cople') return;
     if (!dxfData || !dxfData.entities) return;
@@ -959,10 +1041,10 @@ function saveAnnotations() {
     const data = {
         measurements: measurements.map(m => ({
             p1: m.p1, p2: m.p2, distance: m.distance, color: m.color
-        })), // Strip out 'selected' state so it doesn't persist visual selection
+        })),
         couplings: virtualCouplings,
         unit: currentUnit,
-        symbols: window.getFabricSymbolsData ? window.getFabricSymbolsData() : []
+        symbols: pipingSymbols.map(s => ({ type: s.type, dxfX: s.dxfX, dxfY: s.dxfY, angle: s.angle || 0 }))
     };
     try {
         localStorage.setItem(`dxf_annotations_${currentFileName}`, JSON.stringify(data));
@@ -988,9 +1070,9 @@ function loadAnnotations() {
                 if (unitSelect) unitSelect.value = currentUnit;
                 updateCouplingDefault();
             }
-            if (data.symbols && window.loadFabricSymbolsData) {
-                window.loadFabricSymbolsData(data.symbols);
-                if (window.syncFabricSymbols) window.syncFabricSymbols(viewState.scale);
+            if (data.symbols) {
+                pipingSymbols.length = 0;
+                data.symbols.forEach(s => pipingSymbols.push({ ...s, selected: false }));
             }
         }
     } catch(e) {
@@ -1110,14 +1192,34 @@ canvas.addEventListener('mousedown', (e) => {
         handleSumClick(e);
         return;
     }
-    // ─── Symbol placement: click on DXF canvas ───
+    // ─── Symbol placement ───
     if (currentTool.startsWith('sym-') && currentTool !== 'sym-move') {
         const rect = canvas.getBoundingClientRect();
         const cx = e.clientX - rect.left;
         const cy = e.clientY - rect.top;
+        const dxfPt = canvasToDxf(cx, cy);
         const symType = currentTool.replace('sym-', '');
-        placeSymbolAt(symType, cx, cy);
+        pipingSymbols.push({ type: symType, dxfX: dxfPt.x, dxfY: dxfPt.y, angle: 0, selected: false });
+        saveAnnotations();
+        drawDxf();
         setMode('pan', document.getElementById('btn-pan'));
+        return;
+    }
+    // ─── Symbol move: select / start drag ───
+    if (currentTool === 'sym-move') {
+        const rect = canvas.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        const hit = findSymbolAt(cx, cy);
+        pipingSymbols.forEach(s => s.selected = false);
+        selectedSymbolIndex = hit;
+        if (hit >= 0) {
+            pipingSymbols[hit].selected = true;
+            symDragging = true;
+            symDragLastX = e.clientX;
+            symDragLastY = e.clientY;
+        }
+        drawDxf();
         return;
     }
     if (currentTool === 'pan') {
@@ -1153,10 +1255,47 @@ canvas.addEventListener('mousemove', (e) => {
         viewState.lastY = e.clientY;
         requestDrawDxf();
     }
+    
+    // Symbol dragging
+    if (symDragging && selectedSymbolIndex >= 0) {
+        const dx = e.clientX - symDragLastX;
+        const dy = e.clientY - symDragLastY;
+        symDragLastX = e.clientX;
+        symDragLastY = e.clientY;
+        const sym = pipingSymbols[selectedSymbolIndex];
+        // Convert screen delta to DXF delta
+        sym.dxfX += dx / viewState.scale;
+        sym.dxfY -= dy / viewState.scale; // Y inverted
+        requestDrawDxf();
+    }
 });
 
 window.addEventListener('mouseup', () => {
     viewState.isDragging = false;
+    if (symDragging) {
+        symDragging = false;
+        saveAnnotations();
+        drawDxf();
+    }
+});
+
+// R = rotate selected symbol 45°, Delete/Backspace = remove selected symbol
+window.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (selectedSymbolIndex >= 0 && currentTool === 'sym-move') {
+        if (e.key === 'r' || e.key === 'R') {
+            pipingSymbols[selectedSymbolIndex].angle = ((pipingSymbols[selectedSymbolIndex].angle || 0) + Math.PI / 4) % (Math.PI * 2);
+            saveAnnotations();
+            drawDxf();
+        }
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+            e.preventDefault();
+            pipingSymbols.splice(selectedSymbolIndex, 1);
+            selectedSymbolIndex = -1;
+            saveAnnotations();
+            drawDxf();
+        }
+    }
 });
 
 canvas.addEventListener('wheel', (e) => {
