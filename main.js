@@ -1141,7 +1141,15 @@ function saveAnnotations() {
         })),
         couplings: virtualCouplings,
         unit: currentUnit,
-        symbols: pipingSymbols.map(s => ({ type: s.type, dxfX: s.dxfX, dxfY: s.dxfY, angle: s.angle || 0 }))
+        symbols: pipingSymbols.map(s => ({ 
+            type: s.type, 
+            dxfX: s.dxfX, 
+            dxfY: s.dxfY, 
+            angle: s.angle || 0,
+            d1: s.d1,
+            d2: s.d2,
+            color: s.color
+        }))
     };
     try {
         localStorage.setItem(`dxf_annotations_${currentFileName}`, JSON.stringify(data));
