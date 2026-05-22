@@ -92,13 +92,21 @@ dxfInput.addEventListener('change', (e) => {
         const fileContent = event.target.result;
         const parser = new DxfParser();
         
-        // Monkey-patch ATTRIB support
+        // Monkey-patch ATTRIB and ATTDEF support
         if (parser._entityHandlers && parser._entityHandlers['TEXT']) {
             parser._entityHandlers['ATTRIB'] = {
                 ForEntityName: 'ATTRIB',
                 parseEntity: function(scanner, curr) {
                     const ent = parser._entityHandlers['TEXT'].parseEntity(scanner, curr);
                     ent.type = 'ATTRIB';
+                    return ent;
+                }
+            };
+            parser._entityHandlers['ATTDEF'] = {
+                ForEntityName: 'ATTDEF',
+                parseEntity: function(scanner, curr) {
+                    const ent = parser._entityHandlers['TEXT'].parseEntity(scanner, curr);
+                    ent.type = 'ATTDEF';
                     return ent;
                 }
             };
@@ -300,7 +308,7 @@ function drawEntity(entity) {
             ctx.fillStyle = ctx.strokeStyle;
             ctx.fill();
         }
-    } else if (entity.type === 'TEXT' || entity.type === 'MTEXT' || entity.type === 'ATTRIB') {
+    } else if (entity.type === 'TEXT' || entity.type === 'MTEXT' || entity.type === 'ATTRIB' || entity.type === 'ATTDEF') {
         ctx.save();
         
         const alignPt = (entity.halign && entity.halign > 0 && entity.endPoint) ? entity.endPoint : 
@@ -329,7 +337,7 @@ function drawEntity(entity) {
         
         ctx.font = `${height * FONT_SCALE}px "Inter", sans-serif`;
         ctx.fillStyle = ctx.strokeStyle;
-        let txt = entity.text || '';
+        let txt = entity.text || entity.tag || '';
         
         txt = txt.replace(/\\S(.*?)[#^](.*?);/g, '$1/$2');
         txt = txt.replace(/\\[^;]+;/g, '');
@@ -340,7 +348,16 @@ function drawEntity(entity) {
         ctx.fillText(txt, 0, 0);
         ctx.restore();
     } else if (entity.type === 'INSERT') {
-        const block = dxfData.blocks ? dxfData.blocks[entity.name] : null;
+        let block = dxfData.blocks ? dxfData.blocks[entity.name] : null;
+        if (!block && dxfData.blocks && entity.name) {
+            const lowerName = entity.name.toLowerCase();
+            for (const key in dxfData.blocks) {
+                if (key.toLowerCase() === lowerName) {
+                    block = dxfData.blocks[key];
+                    break;
+                }
+            }
+        }
         if (block && block.entities) {
             ctx.save();
             const ix = entity.position ? entity.position.x : (entity.x || 0);
@@ -377,11 +394,17 @@ function drawEntity(entity) {
             }
             ctx.restore();
         }
+    } else if (entity.type === 'POINT') {
+        const x = entity.position ? entity.position.x : (entity.x || 0);
+        const y = entity.position ? entity.position.y : (entity.y || 0);
+        ctx.beginPath();
+        ctx.arc(x, y, 1, 0, Math.PI * 2);
+        ctx.fill();
     }
     
-    if (entity.type !== 'TEXT' && entity.type !== 'MTEXT' && entity.type !== 'ATTRIB' 
+    if (entity.type !== 'TEXT' && entity.type !== 'MTEXT' && entity.type !== 'ATTRIB' && entity.type !== 'ATTDEF' 
         && entity.type !== 'INSERT' && entity.type !== 'DIMENSION'
-        && entity.type !== 'SOLID' && entity.type !== '3DFACE') {
+        && entity.type !== 'SOLID' && entity.type !== '3DFACE' && entity.type !== 'POINT') {
         ctx.stroke();
     }
 }
