@@ -792,8 +792,9 @@ function drawCouplings() {
         
         ctx.fillStyle = c.color || document.getElementById('cople-color-picker')?.value || '#ef4444'; // Default Red or selected color
         
-        // Scale down at lower zoom
-        const scaleFactor = Math.max(0.3, Math.min(1.5, viewState.scale / 1.5));
+        // Scale down at lower zoom to avoid clutter
+        // Normal size at ~1500% zoom (scale 15). At 500% it will be 1/3 the size.
+        const scaleFactor = Math.min(1.0, viewState.scale / 15.0);
         ctx.scale(scaleFactor, scaleFactor);
         
         ctx.fillRect(-width/2, -height/2, width, height);
@@ -827,8 +828,8 @@ function drawSymbols() {
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         
-        // Scale down symbol visually when zoomed out
-        const scaleFactor = Math.max(0.4, Math.min(1.5, viewState.scale / 1.5));
+        // Scale down symbol visually when zoomed out to avoid clutter
+        const scaleFactor = Math.min(1.0, viewState.scale / 15.0);
         ctx.scale(scaleFactor, scaleFactor);
         
         const s = SYM_SIZE;
