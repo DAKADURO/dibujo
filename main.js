@@ -215,18 +215,18 @@ function hexToAci(hex) {
 function buildDxfEntityHelpers() {
     const nl = rawDxfContent.includes('\r\n') ? '\r\n' : '\n';
 
-    const verMatch = rawDxfContent.match(/\$ACADVER[\s\S]{0,20}?\n([^\n\r]+)/);
-    const ver = verMatch ? verMatch[1].trim() : 'AC1015';
+    // DXF variable blocks have group code 9 for name, then group code 1 for string value
+    // So after $ACADVER, we expect something like "  1\r\nAC1032\r\n"
+    const verMatch = rawDxfContent.match(/\$ACADVER[\s\S]{0,50}?1\s*\r?\n\s*(AC[0-9]+)/);
+    const ver = verMatch ? verMatch[1] : 'AC1015'; // Default to modern if unknown
     const modern = ver >= 'AC1015';
 
     // Find the owner handle (330) of the first entity in the ENTITIES section
-    // so we can assign our injected entities to the same space (Model Space).
     const entitiesIdx = rawDxfContent.indexOf('ENTITIES');
     const ownerMatch = entitiesIdx !== -1 ? rawDxfContent.substring(entitiesIdx, entitiesIdx + 5000).match(/330[\s\r\n]+([0-9A-Fa-f]+)/) : null;
-    const ownerHandle = ownerMatch ? ownerMatch[1] : '1F';
+    const ownerHandle = ownerMatch ? ownerMatch[1] : null;
 
     function getNextDxfHandle() {
-        // Generate a 6-8 char hex handle that is highly unlikely to collide
         return 'E' + Math.floor(Math.random() * 0xFFFFFFF).toString(16).toUpperCase();
     }
 
@@ -235,7 +235,8 @@ function buildDxfEntityHelpers() {
         const c = hexToAci(colorHex);
         const h = getNextDxfHandle();
         if (modern) {
-            return `  0${nl}LINE${nl}  5${nl}${h}${nl}330${nl}${ownerHandle}${nl}100${nl}AcDbEntity${nl}  8${nl}0${nl} 62${nl}${c}${nl}100${nl}AcDbLine${nl} 10${nl}${x1.toFixed(4)}${nl} 20${nl}${y1.toFixed(4)}${nl} 30${nl}0.0${nl} 11${nl}${x2.toFixed(4)}${nl} 21${nl}${y2.toFixed(4)}${nl} 31${nl}0.0${nl}`;
+            const ownerStr = ownerHandle ? `330${nl}${ownerHandle}${nl}` : '';
+            return `  0${nl}LINE${nl}  5${nl}${h}${nl}${ownerStr}100${nl}AcDbEntity${nl}  8${nl}0${nl} 62${nl}${c}${nl}100${nl}AcDbLine${nl} 10${nl}${x1.toFixed(4)}${nl} 20${nl}${y1.toFixed(4)}${nl} 30${nl}0.0${nl} 11${nl}${x2.toFixed(4)}${nl} 21${nl}${y2.toFixed(4)}${nl} 31${nl}0.0${nl}`;
         } else {
             return `  0${nl}LINE${nl}  8${nl}0${nl} 62${nl}${c}${nl} 10${nl}${x1.toFixed(4)}${nl} 20${nl}${y1.toFixed(4)}${nl} 30${nl}0.0${nl} 11${nl}${x2.toFixed(4)}${nl} 21${nl}${y2.toFixed(4)}${nl} 31${nl}0.0${nl}`;
         }
@@ -246,7 +247,8 @@ function buildDxfEntityHelpers() {
         const c = hexToAci(colorHex);
         const h = getNextDxfHandle();
         if (modern) {
-            return `  0${nl}TEXT${nl}  5${nl}${h}${nl}330${nl}${ownerHandle}${nl}100${nl}AcDbEntity${nl}  8${nl}0${nl} 62${nl}${c}${nl}100${nl}AcDbText${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl}`;
+            const ownerStr = ownerHandle ? `330${nl}${ownerHandle}${nl}` : '';
+            return `  0${nl}TEXT${nl}  5${nl}${h}${nl}${ownerStr}100${nl}AcDbEntity${nl}  8${nl}0${nl} 62${nl}${c}${nl}100${nl}AcDbText${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl}`;
         } else {
             return `  0${nl}TEXT${nl}  8${nl}0${nl} 62${nl}${c}${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl}`;
         }
