@@ -41,7 +41,15 @@ let selectedSymbolIndex = -1;
 let symDragging = false;
 let symDragLastX = 0, symDragLastY = 0;
 let clipboardSymbol = null;
-let recentColors = [];
+
+// Global recent colors shared across all files
+let recentColors = ['#06b6d4', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6'];
+try {
+    const savedColors = localStorage.getItem('dxf_global_recent_colors');
+    if (savedColors) {
+        recentColors = JSON.parse(savedColors);
+    }
+} catch (e) { console.warn(e); }
 
 // Clear clipboard when clicking any tool button so it doesn't interfere with new fresh symbols
 document.querySelectorAll('.tool-btn').forEach(btn => {
@@ -683,6 +691,8 @@ function updateSymbolPropertiesUI(x, y) {
         
         const colorInput = document.getElementById('float-color');
         if (colorInput) colorInput.value = sym.color || '#06b6d4';
+        
+        renderRecentColors();
     } else {
         panel.style.display = 'none';
     }
@@ -717,6 +727,11 @@ function addRecentColor(color) {
     recentColors = recentColors.filter(c => c !== color);
     recentColors.unshift(color);
     if (recentColors.length > 8) recentColors.pop();
+    
+    try {
+        localStorage.setItem('dxf_global_recent_colors', JSON.stringify(recentColors));
+    } catch (e) { console.warn(e); }
+    
     renderRecentColors();
 }
 
@@ -1208,7 +1223,6 @@ function saveAnnotations() {
         })),
         couplings: virtualCouplings,
         unit: currentUnit,
-        recentColors: recentColors,
         symbols: pipingSymbols.map(s => ({ 
             type: s.type, 
             dxfX: s.dxfX, 
@@ -1246,10 +1260,6 @@ function loadAnnotations() {
             if (data.symbols) {
                 pipingSymbols.length = 0;
                 data.symbols.forEach(s => pipingSymbols.push({ ...s, selected: false }));
-            }
-            if (data.recentColors) {
-                recentColors = data.recentColors;
-                renderRecentColors();
             }
         }
     } catch(e) {
