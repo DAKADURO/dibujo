@@ -40,6 +40,14 @@ const pipingSymbols = []; // { type, dxfX, dxfY, angle, selected }
 let selectedSymbolIndex = -1;
 let symDragging = false;
 let symDragLastX = 0, symDragLastY = 0;
+let clipboardSymbol = null;
+
+// Clear clipboard when clicking any tool button so it doesn't interfere with new fresh symbols
+document.querySelectorAll('.tool-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        clipboardSymbol = null;
+    });
+});
 
 // ─── BOM State ───
 let bomData = null;
@@ -1288,12 +1296,25 @@ canvas.addEventListener('mousedown', (e) => {
         const cy = e.clientY - rect.top;
         const dxfPt = currentSnapPoint ? { ...currentSnapPoint } : canvasToDxf(cx, cy);
         const symType = currentTool.replace('sym-', '');
-        const picker = document.getElementById('sym-color-picker');
-        const symColor = picker ? picker.value : '#06b6d4';
-        pipingSymbols.push({ type: symType, dxfX: dxfPt.x, dxfY: dxfPt.y, angle: 0, selected: false, color: symColor });
+        
+        let newSym = null;
+        if (clipboardSymbol && clipboardSymbol.type === symType) {
+            // Paste copied symbol properties
+            newSym = { ...clipboardSymbol, dxfX: dxfPt.x, dxfY: dxfPt.y, selected: false };
+        } else {
+            // Fresh symbol
+            const picker = document.getElementById('sym-color-picker');
+            const symColor = picker ? picker.value : '#06b6d4';
+            newSym = { type: symType, dxfX: dxfPt.x, dxfY: dxfPt.y, angle: 0, selected: false, color: symColor };
+        }
+        
+        pipingSymbols.push(newSym);
         saveAnnotations();
         drawDxf();
-        setMode('pan', document.getElementById('btn-pan'));
+        
+        if (!clipboardSymbol) {
+            setMode('pan', document.getElementById('btn-pan'));
+        }
         return;
     }
     // ─── Symbol move: select / start drag (also works in Pan mode) ───
@@ -1409,6 +1430,24 @@ window.addEventListener('mouseup', () => {
 // R = rotate selected symbol 45°, Delete/Backspace = remove selected symbol
 window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    
+    // Copy Symbol (Ctrl+C)
+    if (selectedSymbolIndex >= 0 && (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        clipboardSymbol = { ...pipingSymbols[selectedSymbolIndex] };
+        
+        // Switch to the placement tool for this symbol type
+        const btn = document.getElementById('btn-sym-' + clipboardSymbol.type);
+        if (btn) setMode('sym-' + clipboardSymbol.type, btn);
+        
+        // Deselect the copied symbol
+        pipingSymbols.forEach(s => s.selected = false);
+        selectedSymbolIndex = -1;
+        updateSymbolPropertiesUI();
+        drawDxf();
+        return;
+    }
+    
     if (selectedSymbolIndex >= 0) {
         if (e.key === 'r' || e.key === 'R') {
             pipingSymbols[selectedSymbolIndex].angle = ((pipingSymbols[selectedSymbolIndex].angle || 0) + Math.PI / 4) % (Math.PI * 2);
