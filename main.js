@@ -213,30 +213,40 @@ function hexToAci(hex) {
 
 // Detect DXF format version and line endings from raw content, then build entities accordingly
 function buildDxfEntityHelpers() {
-    // Detect line ending style of the original file
     const nl = rawDxfContent.includes('\r\n') ? '\r\n' : '\n';
 
-    // Detect DXF version. AC1009 = R12 (no subclass markers). AC1015+ = 2000+.
     const verMatch = rawDxfContent.match(/\$ACADVER[\s\S]{0,20}?\n([^\n\r]+)/);
     const ver = verMatch ? verMatch[1].trim() : 'AC1015';
-    const modern = ver >= 'AC1015'; // R2000+ requires subclass markers
-    console.log(`DXF Version: ${ver}, Modern: ${modern}, NL: ${JSON.stringify(nl)}`);
+    const modern = ver >= 'AC1015';
+
+    // Find the owner handle (330) of the first entity in the ENTITIES section
+    // so we can assign our injected entities to the same space (Model Space).
+    const entitiesIdx = rawDxfContent.indexOf('ENTITIES');
+    const ownerMatch = entitiesIdx !== -1 ? rawDxfContent.substring(entitiesIdx, entitiesIdx + 5000).match(/330[\s\r\n]+([0-9A-Fa-f]+)/) : null;
+    const ownerHandle = ownerMatch ? ownerMatch[1] : '1F';
+
+    function getNextDxfHandle() {
+        // Generate a 6-8 char hex handle that is highly unlikely to collide
+        return 'E' + Math.floor(Math.random() * 0xFFFFFFF).toString(16).toUpperCase();
+    }
 
     function dxfLine(x1, y1, x2, y2, colorHex) {
+        if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2)) return '';
         const c = hexToAci(colorHex);
         const h = getNextDxfHandle();
         if (modern) {
-            return `  0${nl}LINE${nl}  5${nl}${h}${nl}100${nl}AcDbEntity${nl}  8${nl}0${nl} 62${nl}${c}${nl}100${nl}AcDbLine${nl} 10${nl}${x1.toFixed(4)}${nl} 20${nl}${y1.toFixed(4)}${nl} 30${nl}0.0${nl} 11${nl}${x2.toFixed(4)}${nl} 21${nl}${y2.toFixed(4)}${nl} 31${nl}0.0${nl}`;
+            return `  0${nl}LINE${nl}  5${nl}${h}${nl}330${nl}${ownerHandle}${nl}100${nl}AcDbEntity${nl}  8${nl}0${nl} 62${nl}${c}${nl}100${nl}AcDbLine${nl} 10${nl}${x1.toFixed(4)}${nl} 20${nl}${y1.toFixed(4)}${nl} 30${nl}0.0${nl} 11${nl}${x2.toFixed(4)}${nl} 21${nl}${y2.toFixed(4)}${nl} 31${nl}0.0${nl}`;
         } else {
             return `  0${nl}LINE${nl}  8${nl}0${nl} 62${nl}${c}${nl} 10${nl}${x1.toFixed(4)}${nl} 20${nl}${y1.toFixed(4)}${nl} 30${nl}0.0${nl} 11${nl}${x2.toFixed(4)}${nl} 21${nl}${y2.toFixed(4)}${nl} 31${nl}0.0${nl}`;
         }
     }
 
     function dxfText(text, x, y, height, colorHex) {
+        if (isNaN(x) || isNaN(y) || isNaN(height) || !text) return '';
         const c = hexToAci(colorHex);
         const h = getNextDxfHandle();
         if (modern) {
-            return `  0${nl}TEXT${nl}  5${nl}${h}${nl}100${nl}AcDbEntity${nl}  8${nl}0${nl} 62${nl}${c}${nl}100${nl}AcDbText${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl}`;
+            return `  0${nl}TEXT${nl}  5${nl}${h}${nl}330${nl}${ownerHandle}${nl}100${nl}AcDbEntity${nl}  8${nl}0${nl} 62${nl}${c}${nl}100${nl}AcDbText${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl}`;
         } else {
             return `  0${nl}TEXT${nl}  8${nl}0${nl} 62${nl}${c}${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl}`;
         }
