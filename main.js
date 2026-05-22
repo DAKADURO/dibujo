@@ -1258,6 +1258,19 @@ canvas.addEventListener('mousemove', (e) => {
         } else {
             currentSnapPoint = null;
         }
+        
+        // Hover detection for symbols (cursor feedback)
+        if (currentTool === 'pan' && !viewState.isDragging && !symDragging) {
+            const rect = canvas.getBoundingClientRect();
+            const cx = e.clientX - rect.left;
+            const cy = e.clientY - rect.top;
+            const hit = findSymbolAt(cx, cy);
+            if (hit >= 0) {
+                canvas.style.cursor = 'move';
+            } else {
+                canvas.style.cursor = 'grab'; // Default pan cursor
+            }
+        }
     }
     
     if (viewState.isDragging) {
@@ -1278,16 +1291,19 @@ canvas.addEventListener('mousemove', (e) => {
             // Snap the symbol strictly to the DXF point
             sym.dxfX = currentSnapPoint.x;
             sym.dxfY = currentSnapPoint.y;
+            // Update last coords so breaking snap is smooth
+            symDragLastX = e.clientX;
+            symDragLastY = e.clientY;
         } else {
             // Normal free dragging
             const dx = e.clientX - symDragLastX;
             const dy = e.clientY - symDragLastY;
             sym.dxfX += dx / viewState.scale;
             sym.dxfY -= dy / viewState.scale; // Y inverted
+            symDragLastX = e.clientX;
+            symDragLastY = e.clientY;
         }
         
-        symDragLastX = e.clientX;
-        symDragLastY = e.clientY;
         requestDrawDxf();
     }
 });

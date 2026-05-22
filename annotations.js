@@ -322,8 +322,8 @@ export function setMode(mode, btnElement) {
         fCanvas.freeDrawingBrush.width = 4;
         if (fabricWrapper) fabricWrapper.style.pointerEvents = 'auto';
     } else if (mode === 'sym-move') {
-        fCanvas.forEachObject(obj => obj.set('selectable', true));
-        if (fabricWrapper) fabricWrapper.style.pointerEvents = 'auto';
+        fCanvas.forEachObject(obj => obj.set('selectable', false));
+        if (fabricWrapper) fabricWrapper.style.pointerEvents = 'none';
     } else if (mode === 'rect' || mode === 'text') {
         // rect/text need fabric to intercept the click
         fCanvas.forEachObject(obj => obj.set('selectable', false));
