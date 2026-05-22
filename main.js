@@ -119,9 +119,8 @@ dxfInput.addEventListener('change', (e) => {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-        rawDxfBytes = new Uint8Array(event.target.result);
-        // Decode as latin1 to preserve all bytes (DXF files are ASCII/Latin-1)
-        rawDxfContent = new TextDecoder('latin1').decode(rawDxfBytes);
+        const fileContent = event.target.result;
+        rawDxfContent = fileContent; // Save raw content for exporting later
         const parser = new DxfParser();
         
         // Monkey-patch ATTRIB and ATTDEF support
@@ -172,7 +171,7 @@ dxfInput.addEventListener('change', (e) => {
             loading.classList.add('hidden');
         }
     };
-    reader.readAsArrayBuffer(file);
+    reader.readAsText(file);
 });
 
 // ─── DXF Export Logic ───
@@ -399,13 +398,8 @@ function exportToDxf() {
                    + customEntities 
                    + rawDxfContent.substring(injectionIndex);
     
-    // Encode as latin1 bytes — preserves original file byte-for-byte
-    const bytes = new Uint8Array(finalStr.length);
-    for (let i = 0; i < finalStr.length; i++) {
-        bytes[i] = finalStr.charCodeAt(i) & 0xFF;
-    }
-    
-    const blob = new Blob([bytes], { type: 'application/octet-stream' });
+    // Save as standard text blob (UTF-8)
+    const blob = new Blob([finalStr], { type: 'application/dxf' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     const safeName = (window._currentFileName || currentFileName || 'plano').replace(/\.dxf$/i, '');
