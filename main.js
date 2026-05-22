@@ -1,5 +1,5 @@
 import DxfParser from 'dxf-parser';
-import { setupAnnotations, resizeAnnotations, setToolChangeCallback, setMode } from './annotations.js';
+import { setupAnnotations, resizeAnnotations, setToolChangeCallback, setMode, getFabricObjects } from './annotations.js';
 import { generateBOM, exportBOMtoCSV } from './bom.js';
 
 const dxfInput = document.getElementById('dxf-input');
@@ -13,6 +13,7 @@ window.addEventListener('error', (e) => {
 });
 
 let dxfData = null;
+let rawDxfContent = null;
 export const viewState = {
     x: 0,
     y: 0,
@@ -118,6 +119,7 @@ dxfInput.addEventListener('change', (e) => {
     const reader = new FileReader();
     reader.onload = (event) => {
         const fileContent = event.target.result;
+        rawDxfContent = fileContent; // Save raw content for exporting later
         const parser = new DxfParser();
         
         // Monkey-patch ATTRIB and ATTDEF support
@@ -170,6 +172,196 @@ dxfInput.addEventListener('change', (e) => {
     };
     reader.readAsText(file);
 });
+
+// ─── DXF Export Logic ───
+document.getElementById('btn-export-dxf').addEventListener('click', () => {
+    if (!rawDxfContent) {
+        alert('Por favor, carga un archivo DXF primero.');
+        return;
+    }
+    exportToDxf();
+});
+
+function hexToDxfColor(hex) {
+    if (!hex) return 0;
+    if (hex.startsWith('#')) hex = hex.substring(1);
+    return parseInt(hex, 16);
+}
+
+function dxfLine(x1, y1, x2, y2, colorHex) {
+    const c = hexToDxfColor(colorHex);
+    return `  0\nLINE\n  8\nAnotaciones\n 420\n${c}\n 10\n${x1}\n 20\n${y1}\n 30\n0.0\n 11\n${x2}\n 21\n${y2}\n 31\n0.0\n`;
+}
+
+function dxfText(text, x, y, height, colorHex) {
+    const c = hexToDxfColor(colorHex);
+    return `  0\nTEXT\n  8\nAnotaciones\n 420\n${c}\n 10\n${x}\n 20\n${y}\n 30\n0.0\n 40\n${height}\n  1\n${text}\n  72\n1\n 11\n${x}\n 21\n${y}\n 31\n0.0\n`; // Centered
+}
+
+function rotatePt(cx, cy, px, py, angle) {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    return {
+        x: cos * (px - cx) - sin * (py - cy) + cx,
+        y: sin * (px - cx) + cos * (py - cy) + cy
+    };
+}
+
+function exportToDxf() {
+    let customEntities = '';
+    
+    // 1. Freehand & Rectangles & Text (Fabric.js objects)
+    const fabricObjs = getFabricObjects();
+    for (const obj of fabricObjs) {
+        // We need to convert screen coordinates back to DXF coordinates.
+        // But wait! Fabric objects are mapped to the canvas screen coordinates.
+        // Actually, in our viewer, we pan and zoom. The Fabric canvas stays fixed to the screen?
+        // Let's check how Fabric objects are managed.
+        // We can just use the inverse of dxfToScreen, which is screenToDxf.
+        const color = obj.stroke || obj.fill || '#06b6d4';
+        
+        if (obj.type === 'path') {
+            // Freehand
+            if (obj.path && obj.path.length > 0) {
+                // path elements are like ['M', x, y], ['Q', x1, y1, x2, y2], ['L', x, y]
+                // For simplicity, we just use the control points or endpoints.
+                let lastPt = null;
+                for (const p of obj.path) {
+                    let screenX = 0, screenY = 0;
+                    if (p[0] === 'M' || p[0] === 'L') { screenX = p[1]; screenY = p[2]; }
+                    else if (p[0] === 'Q') { screenX = p[3]; screenY = p[4]; }
+                    else continue;
+                    
+                    // The path coordinates are relative to the object's left/top if it's transformed, but usually absolute in fabric path if not scaled?
+                    // Actually, fabric path points are relative to the path center or origin.
+                    // To get absolute screen coords:
+                    const absolutePt = fabric.util.transformPoint({x: screenX, y: screenY}, obj.calcTransformMatrix());
+                    const dxfPt = screenToDxf(absolutePt.x, absolutePt.y);
+                    
+                    if (lastPt) {
+                        customEntities += dxfLine(lastPt.x, lastPt.y, dxfPt.x, dxfPt.y, color);
+                    }
+                    lastPt = dxfPt;
+                }
+            }
+        } else if (obj.type === 'rect') {
+            // We get the 4 corners in screen coords
+            const aCoords = obj.aCoords; // {tl, tr, br, bl}
+            const tl = screenToDxf(aCoords.tl.x, aCoords.tl.y);
+            const tr = screenToDxf(aCoords.tr.x, aCoords.tr.y);
+            const br = screenToDxf(aCoords.br.x, aCoords.br.y);
+            const bl = screenToDxf(aCoords.bl.x, aCoords.bl.y);
+            customEntities += dxfLine(tl.x, tl.y, tr.x, tr.y, color);
+            customEntities += dxfLine(tr.x, tr.y, br.x, br.y, color);
+            customEntities += dxfLine(br.x, br.y, bl.x, bl.y, color);
+            customEntities += dxfLine(bl.x, bl.y, tl.x, tl.y, color);
+        } else if (obj.type === 'i-text' || obj.type === 'text') {
+            // Text object
+            // Fabric text origins are usually top-left or center.
+            const center = obj.getCenterPoint();
+            const pt = screenToDxf(center.x, center.y);
+            // Height in DXF units. If fontSize is 20px on screen, in DXF it's 20 / scale.
+            const dxfHeight = (obj.fontSize * obj.scaleY) / viewState.scale;
+            customEntities += dxfText(obj.text, pt.x, pt.y, dxfHeight, color);
+        }
+    }
+    
+    // 2. Measurements
+    for (const m of measurements) {
+        customEntities += dxfLine(m.p1.x, m.p1.y, m.p2.x, m.p2.y, m.color);
+        const midX = (m.p1.x + m.p2.x) / 2;
+        const midY = (m.p1.y + m.p2.y) / 2;
+        customEntities += dxfText(m.distance.toFixed(2), midX, midY + 50, 100, m.color);
+    }
+    
+    // 3. Couplings
+    const cSizeX = 100, cSizeY = 40;
+    for (const c of virtualCouplings) {
+        const cx = c.x, cy = c.y;
+        const color = c.color || document.getElementById('cople-color-picker')?.value || '#ef4444';
+        const p1 = rotatePt(cx, cy, cx - cSizeX/2, cy - cSizeY/2, c.angle || 0);
+        const p2 = rotatePt(cx, cy, cx + cSizeX/2, cy - cSizeY/2, c.angle || 0);
+        const p3 = rotatePt(cx, cy, cx + cSizeX/2, cy + cSizeY/2, c.angle || 0);
+        const p4 = rotatePt(cx, cy, cx - cSizeX/2, cy + cSizeY/2, c.angle || 0);
+        
+        customEntities += dxfLine(p1.x, p1.y, p2.x, p2.y, color);
+        customEntities += dxfLine(p2.x, p2.y, p3.x, p3.y, color);
+        customEntities += dxfLine(p3.x, p3.y, p4.x, p4.y, color);
+        customEntities += dxfLine(p4.x, p4.y, p1.x, p1.y, color);
+    }
+    
+    // 4. Piping Symbols
+    const sSize = 140; // Equivalent to SYM_SIZE = 14
+    for (const sym of pipingSymbols) {
+        const cx = sym.dxfX, cy = sym.dxfY;
+        const color = sym.color || '#06b6d4';
+        const a = sym.angle || 0;
+        
+        const drawLine = (x1, y1, x2, y2) => {
+            const p1 = rotatePt(cx, cy, cx + x1, cy + y1, a);
+            const p2 = rotatePt(cx, cy, cx + x2, cy + y2, a);
+            customEntities += dxfLine(p1.x, p1.y, p2.x, p2.y, color);
+        };
+        
+        if (sym.type === 'tee') {
+            drawLine(-sSize, 0, sSize, 0);
+            drawLine(0, 0, 0, -sSize); // Y axis is inverted in canvas vs DXF? Actually, DXF Y is up. In our rotatePt, y is DXF y.
+        } else if (sym.type === 'codo') {
+            drawLine(-sSize, 0, 0, 0);
+            drawLine(0, 0, 0, -sSize);
+        } else if (sym.type === 'reductor') {
+            drawLine(-sSize, -sSize*0.6, sSize, -sSize*0.35);
+            drawLine(sSize, -sSize*0.35, sSize, sSize*0.35);
+            drawLine(sSize, sSize*0.35, -sSize, sSize*0.6);
+            drawLine(-sSize, sSize*0.6, -sSize, -sSize*0.6);
+        } else if (sym.type === 'brida') {
+            drawLine(-sSize*0.25, -sSize, -sSize*0.25, sSize);
+            drawLine(sSize*0.25, -sSize, sSize*0.25, sSize);
+        } else if (sym.type === 'tapon') {
+            drawLine(-sSize, 0, 0, 0);
+            drawLine(0, -sSize*0.7, 0, sSize*0.7);
+        }
+        
+        // Add text label
+        let label = sym.type === 'tapon' ? 'Tapón' : sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
+        if (sym.d1 && sym.d2) label += ` ${sym.d1}x${sym.d2}`;
+        else if (sym.d1) label += ` ${sym.d1}`;
+        else if (sym.d2) label += ` ${sym.d2}`;
+        
+        const pL = rotatePt(cx, cy, cx, cy + sSize + 50, a);
+        customEntities += dxfText(label, pL.x, pL.y, 80, color);
+    }
+    
+    // 2. Inject customEntities into rawDxfContent before the ENDSEC of ENTITIES
+    const secStartIndex = rawDxfContent.toUpperCase().indexOf('ENTITIES');
+    if (secStartIndex === -1) {
+        alert('No se pudo encontrar la sección ENTITIES en el archivo original.');
+        return;
+    }
+    
+    // Find the next ENDSEC after ENTITIES
+    const searchString = rawDxfContent.substring(secStartIndex);
+    const endsecMatch = searchString.match(/0\s*(\r?\n)\s*ENDSEC/i);
+    
+    if (!endsecMatch) {
+        alert('No se pudo encontrar el fin de la sección ENTITIES.');
+        return;
+    }
+    
+    const injectionIndex = secStartIndex + endsecMatch.index;
+    
+    // Construct final DXF string
+    const finalDxf = rawDxfContent.substring(0, injectionIndex) 
+                   + customEntities 
+                   + rawDxfContent.substring(injectionIndex);
+                   
+    // Trigger download
+    const blob = new Blob([finalDxf], { type: 'application/dxf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = currentFileName ? currentFileName.replace('.dxf', '_modificado.dxf') : 'plano_modificado.dxf';
+    link.click();
+}
 
 // ─── Coordinate Transforms ───
 export function screenToDxf(screenX, screenY) {

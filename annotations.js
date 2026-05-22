@@ -8,6 +8,10 @@ let currentMode = 'pan';
 // Callback to notify main.js of tool changes (set externally to avoid circular imports)
 let onToolChangeCallback = null;
 
+export function getFabricObjects() {
+    return fCanvas ? fCanvas.getObjects() : [];
+}
+
 export function setToolChangeCallback(cb) {
     onToolChangeCallback = cb;
 }
