@@ -679,6 +679,9 @@ function updateSymbolPropertiesUI(x, y) {
             if (d2Container) d2Container.style.display = 'block';
             if (d2Input) d2Input.value = sym.d2 || '';
         }
+        
+        const colorInput = document.getElementById('float-color');
+        if (colorInput) colorInput.value = sym.color || '#06b6d4';
     } else {
         panel.style.display = 'none';
     }
@@ -695,6 +698,14 @@ document.getElementById('float-d1')?.addEventListener('change', (e) => {
 document.getElementById('float-d2')?.addEventListener('change', (e) => {
     if (selectedSymbolIndex >= 0) {
         pipingSymbols[selectedSymbolIndex].d2 = e.target.value;
+        saveAnnotations();
+        requestDrawDxf();
+    }
+});
+
+document.getElementById('float-color')?.addEventListener('input', (e) => {
+    if (selectedSymbolIndex >= 0) {
+        pipingSymbols[selectedSymbolIndex].color = e.target.value;
         saveAnnotations();
         requestDrawDxf();
     }
