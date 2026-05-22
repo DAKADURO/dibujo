@@ -215,9 +215,9 @@ function hexToAci(hex) {
 function buildDxfEntityHelpers() {
     const nl = rawDxfContent.includes('\r\n') ? '\r\n' : '\n';
 
-    // DXF variable blocks have group code 9 for name, then group code 1 for string value
-    // So after $ACADVER, we expect something like "  1\r\nAC1032\r\n"
-    const verMatch = rawDxfContent.match(/\$ACADVER[\s\S]{0,50}?1\s*\r?\n\s*(AC[0-9]+)/);
+    // DXF variable blocks have group code 9 for name, then group code 1 for string value.
+    // We simply look for the next "AC10xx" string shortly after $ACADVER.
+    const verMatch = rawDxfContent.match(/\$ACADVER[\s\S]{1,50}?(AC10[0-9]{2})/);
     const ver = verMatch ? verMatch[1] : 'AC1015'; // Default to modern if unknown
     const modern = ver >= 'AC1015';
 
