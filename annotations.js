@@ -147,8 +147,8 @@ export function setupAnnotations() {
     // Save DXF coordinates when a symbol is dragged
     fCanvas.on('object:modified', (e) => {
         const obj = e.target;
-        if (obj && obj.isPipingSymbol && window.screenToDxf) {
-            const pt = window.screenToDxf(obj.left, obj.top);
+        if (obj && obj.isPipingSymbol && window.canvasToDxf) {
+            const pt = window.canvasToDxf(obj.left, obj.top);
             obj.dxfX = pt.x;
             obj.dxfY = pt.y;
             // Base scale is preserved, only scale relative to viewState changes
@@ -158,9 +158,9 @@ export function setupAnnotations() {
 
 // ─── Piping Symbols ───
 function placeSymbolAt(type, screenX, screenY) {
-    if (!window.screenToDxf) return;
+    if (!window.canvasToDxf) return;
     
-    const dxfPt = window.screenToDxf(screenX, screenY);
+    const dxfPt = window.canvasToDxf(screenX, screenY);
     const color = '#06b6d4'; // Cyan default
     let obj;
     

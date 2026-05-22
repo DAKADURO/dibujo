@@ -59,7 +59,7 @@ setToolChangeCallback((tool) => {
     
     const infoSum = document.getElementById('info-sum');
     
-    if (tool === 'cople' || tool === 'delete' || tool === 'sum') {
+    if (tool === 'cople' || tool === 'delete' || tool === 'sum' || (tool.startsWith('sym-') && tool !== 'sym-move')) {
         container.classList.add('measure-mode'); // Use crosshair
         if (tool === 'cople' && infoCople) infoCople.style.display = 'flex';
         else if (infoCople) infoCople.style.display = 'none';
@@ -148,11 +148,16 @@ export function screenToDxf(screenX, screenY) {
     const rect = canvas.getBoundingClientRect();
     const cx = screenX - rect.left;
     const cy = screenY - rect.top;
+    return canvasToDxf(cx, cy);
+}
+window.screenToDxf = screenToDxf;
+
+export function canvasToDxf(cx, cy) {
     const dxfX = (cx - viewState.x) / viewState.scale;
     const dxfY = -(cy - viewState.y) / viewState.scale;  // Y is inverted
     return { x: dxfX, y: dxfY };
 }
-window.screenToDxf = screenToDxf;
+window.canvasToDxf = canvasToDxf;
 
 export function dxfToScreen(dxfX, dxfY) {
     const sx = dxfX * viewState.scale + viewState.x;
