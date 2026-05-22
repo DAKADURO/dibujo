@@ -1209,23 +1209,31 @@ canvas.addEventListener('mousedown', (e) => {
         setMode('pan', document.getElementById('btn-pan'));
         return;
     }
-    // ─── Symbol move: select / start drag ───
-    if (currentTool === 'sym-move') {
+    // ─── Symbol move: select / start drag (also works in Pan mode) ───
+    if (currentTool === 'pan' || currentTool === 'sym-move') {
         const rect = canvas.getBoundingClientRect();
         const cx = e.clientX - rect.left;
         const cy = e.clientY - rect.top;
         const hit = findSymbolAt(cx, cy);
-        pipingSymbols.forEach(s => s.selected = false);
-        selectedSymbolIndex = hit;
+        
         if (hit >= 0) {
+            pipingSymbols.forEach(s => s.selected = false);
+            selectedSymbolIndex = hit;
             pipingSymbols[hit].selected = true;
             symDragging = true;
             symDragLastX = e.clientX;
             symDragLastY = e.clientY;
+            drawDxf();
+            return; // Intercepted the click for symbol, don't pan
+        } else {
+            // Clicked empty space
+            pipingSymbols.forEach(s => s.selected = false);
+            selectedSymbolIndex = -1;
+            drawDxf();
+            if (currentTool === 'sym-move') return; // Do nothing else
         }
-        drawDxf();
-        return;
     }
+    
     if (currentTool === 'pan') {
         viewState.isDragging = true;
         viewState.lastX = e.clientX;
@@ -1244,9 +1252,11 @@ canvas.addEventListener('mousemove', (e) => {
         if (cx) cx.textContent = `X: ${pt.x.toFixed(2)}`;
         if (cy) cy.textContent = `Y: ${pt.y.toFixed(2)}`;
         
-        if (currentTool === 'measure' || currentTool.startsWith('sym-')) {
+        if (currentTool === 'measure' || currentTool.startsWith('sym-') || symDragging) {
             currentSnapPoint = findClosestSnapPoint(pt, 15); // 15px snap radius
             if (!viewState.isDragging) requestDrawDxf(); // Redraw for live line/snap
+        } else {
+            currentSnapPoint = null;
         }
     }
     
@@ -1294,7 +1304,7 @@ window.addEventListener('mouseup', () => {
 // R = rotate selected symbol 45°, Delete/Backspace = remove selected symbol
 window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (selectedSymbolIndex >= 0 && currentTool === 'sym-move') {
+    if (selectedSymbolIndex >= 0) {
         if (e.key === 'r' || e.key === 'R') {
             pipingSymbols[selectedSymbolIndex].angle = ((pipingSymbols[selectedSymbolIndex].angle || 0) + Math.PI / 4) % (Math.PI * 2);
             saveAnnotations();
