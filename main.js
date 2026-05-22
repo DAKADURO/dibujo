@@ -13,7 +13,8 @@ window.addEventListener('error', (e) => {
 });
 
 let dxfData = null;
-let rawDxfContent = null;
+let rawDxfContent = null;     // decoded string (latin1) of original file
+let rawDxfBytes = null;       // Uint8Array of original file (preserved for export)
 export const viewState = {
     x: 0,
     y: 0,
@@ -118,8 +119,9 @@ dxfInput.addEventListener('change', (e) => {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-        const fileContent = event.target.result;
-        rawDxfContent = fileContent; // Save raw content for exporting later
+        rawDxfBytes = new Uint8Array(event.target.result);
+        // Decode as latin1 to preserve all bytes (DXF files are ASCII/Latin-1)
+        rawDxfContent = new TextDecoder('latin1').decode(rawDxfBytes);
         const parser = new DxfParser();
         
         // Monkey-patch ATTRIB and ATTDEF support
@@ -170,7 +172,7 @@ dxfInput.addEventListener('change', (e) => {
             loading.classList.add('hidden');
         }
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
 });
 
 // ─── DXF Export Logic ───
@@ -200,26 +202,48 @@ function hexToAci(hex) {
         const r = parseInt(hex.slice(1,3), 16);
         const g = parseInt(hex.slice(3,5), 16);
         const b = parseInt(hex.slice(5,7), 16);
-        if (r>200 && g<100 && b<100) return 1; 
-        if (r>200 && g>200 && b<100) return 2; 
-        if (r<100 && g>200 && b<100) return 3; 
-        if (r<100 && g>200 && b>200) return 4; 
-        if (r<100 && g<100 && b>200) return 5; 
-        if (r>200 && g<100 && b>200) return 6; 
+        if (r>200 && g<100 && b<100) return 1;
+        if (r>200 && g>200 && b<100) return 2;
+        if (r<100 && g>200 && b<100) return 3;
+        if (r<100 && g>200 && b>200) return 4;
+        if (r<100 && g<100 && b>200) return 5;
+        if (r>200 && g<100 && b>200) return 6;
     }
     return 7;
 }
 
-function dxfLine(x1, y1, x2, y2, colorHex) {
-    const c = hexToAci(colorHex);
-    const h = getNextDxfHandle();
-    return `  0\r\nLINE\r\n  5\r\n${h}\r\n100\r\nAcDbEntity\r\n  8\r\n0\r\n 62\r\n${c}\r\n100\r\nAcDbLine\r\n 10\r\n${x1.toFixed(4)}\r\n 20\r\n${y1.toFixed(4)}\r\n 30\r\n0.0\r\n 11\r\n${x2.toFixed(4)}\r\n 21\r\n${y2.toFixed(4)}\r\n 31\r\n0.0\r\n`;
-}
+// Detect DXF format version and line endings from raw content, then build entities accordingly
+function buildDxfEntityHelpers() {
+    // Detect line ending style of the original file
+    const nl = rawDxfContent.includes('\r\n') ? '\r\n' : '\n';
 
-function dxfText(text, x, y, height, colorHex) {
-    const c = hexToAci(colorHex);
-    const h = getNextDxfHandle();
-    return `  0\r\nTEXT\r\n  5\r\n${h}\r\n100\r\nAcDbEntity\r\n  8\r\n0\r\n 62\r\n${c}\r\n100\r\nAcDbText\r\n 10\r\n${x.toFixed(4)}\r\n 20\r\n${y.toFixed(4)}\r\n 30\r\n0.0\r\n 40\r\n${height.toFixed(4)}\r\n  1\r\n${text}\r\n`;
+    // Detect DXF version. AC1009 = R12 (no subclass markers). AC1015+ = 2000+.
+    const verMatch = rawDxfContent.match(/\$ACADVER[\s\S]{0,20}?\n([^\n\r]+)/);
+    const ver = verMatch ? verMatch[1].trim() : 'AC1015';
+    const modern = ver >= 'AC1015'; // R2000+ requires subclass markers
+    console.log(`DXF Version: ${ver}, Modern: ${modern}, NL: ${JSON.stringify(nl)}`);
+
+    function dxfLine(x1, y1, x2, y2, colorHex) {
+        const c = hexToAci(colorHex);
+        const h = getNextDxfHandle();
+        if (modern) {
+            return `  0${nl}LINE${nl}  5${nl}${h}${nl}100${nl}AcDbEntity${nl}  8${nl}0${nl} 62${nl}${c}${nl}100${nl}AcDbLine${nl} 10${nl}${x1.toFixed(4)}${nl} 20${nl}${y1.toFixed(4)}${nl} 30${nl}0.0${nl} 11${nl}${x2.toFixed(4)}${nl} 21${nl}${y2.toFixed(4)}${nl} 31${nl}0.0${nl}`;
+        } else {
+            return `  0${nl}LINE${nl}  8${nl}0${nl} 62${nl}${c}${nl} 10${nl}${x1.toFixed(4)}${nl} 20${nl}${y1.toFixed(4)}${nl} 30${nl}0.0${nl} 11${nl}${x2.toFixed(4)}${nl} 21${nl}${y2.toFixed(4)}${nl} 31${nl}0.0${nl}`;
+        }
+    }
+
+    function dxfText(text, x, y, height, colorHex) {
+        const c = hexToAci(colorHex);
+        const h = getNextDxfHandle();
+        if (modern) {
+            return `  0${nl}TEXT${nl}  5${nl}${h}${nl}100${nl}AcDbEntity${nl}  8${nl}0${nl} 62${nl}${c}${nl}100${nl}AcDbText${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl}`;
+        } else {
+            return `  0${nl}TEXT${nl}  8${nl}0${nl} 62${nl}${c}${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl}`;
+        }
+    }
+
+    return { dxfLine, dxfText, nl };
 }
 
 function rotatePt(cx, cy, px, py, angle) {
@@ -232,16 +256,13 @@ function rotatePt(cx, cy, px, py, angle) {
 }
 
 function exportToDxf() {
+    // Get version/NL-aware entity builder
+    const { dxfLine, dxfText } = buildDxfEntityHelpers();
     let customEntities = '';
     
     // 1. Freehand & Rectangles & Text (Fabric.js objects)
     const fabricObjs = getFabricObjects();
     for (const obj of fabricObjs) {
-        // We need to convert screen coordinates back to DXF coordinates.
-        // But wait! Fabric objects are mapped to the canvas screen coordinates.
-        // Actually, in our viewer, we pan and zoom. The Fabric canvas stays fixed to the screen?
-        // Let's check how Fabric objects are managed.
-        // We can just use the inverse of dxfToScreen, which is screenToDxf.
         const color = obj.stroke || obj.fill || '#06b6d4';
         
         if (obj.type === 'path') {
@@ -346,8 +367,8 @@ function exportToDxf() {
             drawLine(0, -sSize*0.7, 0, sSize*0.7);
         }
         
-        // Add text label
-        let label = sym.type === 'tapon' ? 'Tapón' : sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
+        // Add text label - no accented chars for Latin-1 safety
+        let label = sym.type === 'tapon' ? 'Tapon' : sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
         if (sym.d1 && sym.d2) label += ` ${sym.d1}x${sym.d2}`;
         else if (sym.d1) label += ` ${sym.d1}`;
         else if (sym.d2) label += ` ${sym.d2}`;
@@ -356,34 +377,39 @@ function exportToDxf() {
         customEntities += dxfText(label, pL.x, pL.y, 80, color);
     }
     
-    // 2. Inject customEntities into rawDxfContent before the ENDSEC of ENTITIES
-    const entitiesHeader = rawDxfContent.match(/2\s*(\r?\n)\s*ENTITIES/i);
+    // 5. Find ENTITIES ENDSEC and inject
+    const entitiesHeader = rawDxfContent.match(/2\s*\r?\nENTITIES/i);
     if (!entitiesHeader) {
         alert('No se pudo encontrar la sección ENTITIES en el archivo original.');
         return;
     }
-    
     const searchStartIndex = entitiesHeader.index + entitiesHeader[0].length;
     const searchString = rawDxfContent.substring(searchStartIndex);
-    const endsecMatch = searchString.match(/0\s*(\r?\n)\s*ENDSEC/i);
     
+    // Find first ENDSEC after ENTITIES
+    const endsecMatch = searchString.match(/\n[ \t]*0[ \t]*\r?\n[ \t]*ENDSEC/i);
     if (!endsecMatch) {
         alert('No se pudo encontrar el fin de la sección ENTITIES.');
         return;
     }
+    // Inject right before the "\n  0\nENDSEC" so we're still inside ENTITIES
+    const injectionIndex = searchStartIndex + endsecMatch.index + 1; // +1 to keep the preceding \n
     
-    const injectionIndex = searchStartIndex + endsecMatch.index;
-    
-    // Construct final DXF string
-    const finalDxf = rawDxfContent.substring(0, injectionIndex) 
+    const finalStr = rawDxfContent.substring(0, injectionIndex) 
                    + customEntities 
                    + rawDxfContent.substring(injectionIndex);
-                   
-    // Trigger download
-    const blob = new Blob([finalDxf], { type: 'application/dxf' });
+    
+    // Encode as latin1 bytes — preserves original file byte-for-byte
+    const bytes = new Uint8Array(finalStr.length);
+    for (let i = 0; i < finalStr.length; i++) {
+        bytes[i] = finalStr.charCodeAt(i) & 0xFF;
+    }
+    
+    const blob = new Blob([bytes], { type: 'application/octet-stream' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = currentFileName ? currentFileName.replace('.dxf', '_modificado.dxf') : 'plano_modificado.dxf';
+    const safeName = (window._currentFileName || currentFileName || 'plano').replace(/\.dxf$/i, '');
+    link.download = `${safeName}_modificado.dxf`;
     link.click();
 }
 
