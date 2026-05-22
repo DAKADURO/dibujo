@@ -250,6 +250,7 @@ function drawDxf() {
     drawCouplings();
     drawMeasurements();
     drawSymbols();
+    drawSnapIndicator();
     
     // Sync Fabric.js canvas (for draw/rect/text tools)
     if (window.syncFabricSymbols) {
@@ -546,16 +547,19 @@ function drawMeasurements() {
         ctx.fillText('Clic en 2° punto', sp.x + 12, sp.y - 6);
     }
     
-    // Draw snap indicator
+    ctx.restore();
+}
+
+function drawSnapIndicator() {
     if ((currentTool === 'measure' || currentTool.startsWith('sym-')) && currentSnapPoint) {
+        ctx.save();
         const sp = dxfToScreen(currentSnapPoint.x, currentSnapPoint.y);
         ctx.strokeStyle = '#22c55e'; // Green for snap
         ctx.lineWidth = 2;
         const sSize = 5;
         ctx.strokeRect(sp.x - sSize, sp.y - sSize, sSize * 2, sSize * 2);
+        ctx.restore();
     }
-    
-    ctx.restore();
 }
 
 function findClosestSnapPoint(mouseDxfPt, maxScreenDist) {
