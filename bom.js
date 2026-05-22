@@ -166,7 +166,7 @@ export function generateBOM(dxfData, virtualCouplings = [], pipingSymbols = []) 
         for (const sym of pipingSymbols) {
             if (!sym.type) continue;
             
-            let label = sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
+            let label = sym.type === 'tapon' ? 'Tapón' : sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
             if (sym.d1 && sym.d2) {
                 label += ` ${sym.d1}x${sym.d2}`;
             } else if (sym.d1) {
@@ -179,7 +179,7 @@ export function generateBOM(dxfData, virtualCouplings = [], pipingSymbols = []) 
             if (!fittingCounts[key]) {
                 fittingCounts[key] = {
                     description: label,
-                    type: sym.type.charAt(0).toUpperCase() + sym.type.slice(1),
+                    type: sym.type === 'tapon' ? 'Tapón' : sym.type.charAt(0).toUpperCase() + sym.type.slice(1),
                     layer: 'Anotación Manual',
                     count: 0
                 };

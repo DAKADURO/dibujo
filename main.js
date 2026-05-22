@@ -673,7 +673,7 @@ function updateSymbolPropertiesUI(x, y) {
         
         if (d1Input) d1Input.value = sym.d1 || '';
         
-        if (sym.type === 'codo') {
+        if (sym.type === 'codo' || sym.type === 'tapon') {
             if (d2Container) d2Container.style.display = 'none';
         } else {
             if (d2Container) d2Container.style.display = 'block';
@@ -923,13 +923,16 @@ function drawSymbols() {
         } else if (sym.type === 'brida') {
             ctx.moveTo(-s * 0.25, -s); ctx.lineTo(-s * 0.25, s);
             ctx.moveTo(s * 0.25, -s);  ctx.lineTo(s * 0.25, s);
+        } else if (sym.type === 'tapon') {
+            ctx.moveTo(-s, 0); ctx.lineTo(0, 0);    // tube reaching end
+            ctx.moveTo(0, -s * 0.7); ctx.lineTo(0, s * 0.7); // vertical cap
         }
         ctx.stroke();
         
         // Label
         let label = '';
         if (sym.type) {
-            label = sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
+            label = sym.type === 'tapon' ? 'Tapón' : sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
         }
         if (sym.d1 && sym.d2) {
             label += ` ${sym.d1}x${sym.d2}`;
