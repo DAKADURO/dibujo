@@ -547,7 +547,7 @@ function drawMeasurements() {
     }
     
     // Draw snap indicator
-    if (currentTool === 'measure' && currentSnapPoint) {
+    if ((currentTool === 'measure' || currentTool.startsWith('sym-')) && currentSnapPoint) {
         const sp = dxfToScreen(currentSnapPoint.x, currentSnapPoint.y);
         ctx.strokeStyle = '#22c55e'; // Green for snap
         ctx.lineWidth = 2;
@@ -1197,7 +1197,7 @@ canvas.addEventListener('mousedown', (e) => {
         const rect = canvas.getBoundingClientRect();
         const cx = e.clientX - rect.left;
         const cy = e.clientY - rect.top;
-        const dxfPt = canvasToDxf(cx, cy);
+        const dxfPt = currentSnapPoint ? { ...currentSnapPoint } : canvasToDxf(cx, cy);
         const symType = currentTool.replace('sym-', '');
         pipingSymbols.push({ type: symType, dxfX: dxfPt.x, dxfY: dxfPt.y, angle: 0, selected: false });
         saveAnnotations();
@@ -1240,7 +1240,7 @@ canvas.addEventListener('mousemove', (e) => {
         if (cx) cx.textContent = `X: ${pt.x.toFixed(2)}`;
         if (cy) cy.textContent = `Y: ${pt.y.toFixed(2)}`;
         
-        if (currentTool === 'measure') {
+        if (currentTool === 'measure' || currentTool.startsWith('sym-')) {
             currentSnapPoint = findClosestSnapPoint(pt, 15); // 15px snap radius
             if (!viewState.isDragging) requestDrawDxf(); // Redraw for live line/snap
         }
@@ -1258,14 +1258,22 @@ canvas.addEventListener('mousemove', (e) => {
     
     // Symbol dragging
     if (symDragging && selectedSymbolIndex >= 0) {
-        const dx = e.clientX - symDragLastX;
-        const dy = e.clientY - symDragLastY;
+        const sym = pipingSymbols[selectedSymbolIndex];
+        
+        if (currentSnapPoint) {
+            // Snap the symbol strictly to the DXF point
+            sym.dxfX = currentSnapPoint.x;
+            sym.dxfY = currentSnapPoint.y;
+        } else {
+            // Normal free dragging
+            const dx = e.clientX - symDragLastX;
+            const dy = e.clientY - symDragLastY;
+            sym.dxfX += dx / viewState.scale;
+            sym.dxfY -= dy / viewState.scale; // Y inverted
+        }
+        
         symDragLastX = e.clientX;
         symDragLastY = e.clientY;
-        const sym = pipingSymbols[selectedSymbolIndex];
-        // Convert screen delta to DXF delta
-        sym.dxfX += dx / viewState.scale;
-        sym.dxfY -= dy / viewState.scale; // Y inverted
         requestDrawDxf();
     }
 });
