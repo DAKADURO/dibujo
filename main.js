@@ -641,6 +641,43 @@ function handleMeasureClick(e) {
     drawDxf();
 }
 
+function updateSymbolPropertiesUI() {
+    const panel = document.getElementById('sym-properties');
+    if (!panel) return;
+    
+    if (selectedSymbolIndex >= 0) {
+        const sym = pipingSymbols[selectedSymbolIndex];
+        panel.style.display = 'block';
+        const d1Input = document.getElementById('sym-d1');
+        const d2Input = document.getElementById('sym-d2');
+        if (d1Input) d1Input.value = sym.d1 || '';
+        
+        if (sym.type === 'codo') {
+            if (d2Input) { d2Input.value = ''; d2Input.disabled = true; d2Input.style.opacity = '0.5'; }
+        } else {
+            if (d2Input) { d2Input.value = sym.d2 || ''; d2Input.disabled = false; d2Input.style.opacity = '1'; }
+        }
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+document.getElementById('sym-d1')?.addEventListener('input', (e) => {
+    if (selectedSymbolIndex >= 0) {
+        pipingSymbols[selectedSymbolIndex].d1 = e.target.value;
+        saveAnnotations();
+        requestDrawDxf();
+    }
+});
+
+document.getElementById('sym-d2')?.addEventListener('input', (e) => {
+    if (selectedSymbolIndex >= 0) {
+        pipingSymbols[selectedSymbolIndex].d2 = e.target.value;
+        saveAnnotations();
+        requestDrawDxf();
+    }
+});
+
 // ─── Delete mode logic ───
 function handleDeleteClick(e) {
     if (currentTool !== 'delete') return;
@@ -852,10 +889,19 @@ function drawSymbols() {
         ctx.stroke();
         
         // Label
+        let label = sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
+        if (sym.d1 && sym.d2) {
+            label += ` ${sym.d1}x${sym.d2}`;
+        } else if (sym.d1) {
+            label += ` ${sym.d1}`;
+        } else if (sym.d2) {
+            label += ` ${sym.d2}`;
+        }
+        
         ctx.font = 'bold 10px "Inter", sans-serif';
         ctx.fillStyle = baseColor;
         ctx.textAlign = 'center';
-        ctx.fillText(sym.type.charAt(0).toUpperCase() + sym.type.slice(1), 0, -s - 4);
+        ctx.fillText(label, 0, -s - 4);
         
         // Selection ring
         if (sym.selected) {
@@ -1242,12 +1288,14 @@ canvas.addEventListener('mousedown', (e) => {
             symDragging = true;
             symDragLastX = e.clientX;
             symDragLastY = e.clientY;
+            updateSymbolPropertiesUI();
             drawDxf();
             return; // Intercepted the click for symbol, don't pan
         } else {
             // Clicked empty space
             pipingSymbols.forEach(s => s.selected = false);
             selectedSymbolIndex = -1;
+            updateSymbolPropertiesUI();
             drawDxf();
             if (currentTool === 'sym-move') return; // Do nothing else
         }
@@ -1349,6 +1397,7 @@ window.addEventListener('keydown', (e) => {
             e.preventDefault();
             pipingSymbols.splice(selectedSymbolIndex, 1);
             selectedSymbolIndex = -1;
+            updateSymbolPropertiesUI();
             saveAnnotations();
             drawDxf();
         }
