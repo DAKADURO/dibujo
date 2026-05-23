@@ -226,8 +226,22 @@ function buildDxfEntityHelpers() {
     const ownerMatch = entitiesIdx !== -1 ? rawDxfContent.substring(entitiesIdx, entitiesIdx + 5000).match(/330[\s\r\n]+([0-9A-Fa-f]+)/) : null;
     const ownerHandle = ownerMatch ? ownerMatch[1] : null;
 
+    // Parse $HANDSEED to use valid contiguous handles and prevent AutoCAD crashes
+    const handseedMatch = rawDxfContent.match(/\$HANDSEED[\s\r\n]+5[\s\r\n]+([0-9A-Fa-f]+)/);
+    let currentHandleSeed = handseedMatch ? parseInt(handseedMatch[1], 16) : 0xF00000;
+
     function getNextDxfHandle() {
-        return 'E' + Math.floor(Math.random() * 0xFFFFFFF).toString(16).toUpperCase();
+        const h = currentHandleSeed.toString(16).toUpperCase();
+        currentHandleSeed++;
+        return h;
+    }
+
+    function getUpdatedHandseedString() {
+        if (!handseedMatch) return null;
+        return {
+            oldStr: handseedMatch[0],
+            newStr: handseedMatch[0].replace(handseedMatch[1], currentHandleSeed.toString(16).toUpperCase())
+        };
     }
 
     function dxfLine(x1, y1, x2, y2, colorHex) {
@@ -254,7 +268,7 @@ function buildDxfEntityHelpers() {
         }
     }
 
-    return { dxfLine, dxfText, nl };
+    return { dxfLine, dxfText, nl, getUpdatedHandseedString };
 }
 
 function rotatePt(cx, cy, px, py, angle) {
@@ -406,9 +420,15 @@ function exportToDxf() {
     // Inject right before the "\n  0\nENDSEC" so we're still inside ENTITIES
     const injectionIndex = searchStartIndex + endsecMatch.index + 1; // +1 to keep the preceding \n
     
-    const finalStr = rawDxfContent.substring(0, injectionIndex) 
+    let finalStr = rawDxfContent.substring(0, injectionIndex) 
                    + customEntities 
                    + rawDxfContent.substring(injectionIndex);
+                   
+    // Update HANDSEED so AutoCAD doesn't crash on the new handles
+    const handseedUpdate = helpers.getUpdatedHandseedString();
+    if (handseedUpdate) {
+        finalStr = finalStr.replace(handseedUpdate.oldStr, handseedUpdate.newStr);
+    }
     
     // Save as standard text blob (UTF-8)
     const blob = new Blob([finalStr], { type: 'application/dxf' });
