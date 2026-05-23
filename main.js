@@ -282,7 +282,8 @@ function rotatePt(cx, cy, px, py, angle) {
 
 function exportToDxf() {
     // Get version/NL-aware entity builder
-    const { dxfLine, dxfText } = buildDxfEntityHelpers();
+    const helpers = buildDxfEntityHelpers();
+    const { dxfLine, dxfText } = helpers;
     let customEntities = '';
     
     // 1. Freehand & Rectangles & Text (Fabric.js objects)
