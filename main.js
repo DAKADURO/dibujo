@@ -458,9 +458,18 @@ function exportToDxf() {
     // Inject right before the "\n  0\nENDSEC" so we're still inside ENTITIES
     const injectionIndex = searchStartIndex + endsecMatch.index + 1; // +1 to keep the preceding \n
     
+    let remainder = rawDxfContent.substring(injectionIndex);
+    
+    // CONTROL DE SEGURIDAD PARANOICO: Si por corrupción de strings el "remainder" no contiene el EOF final,
+    // forzamos el cierre de la sección y del archivo para que AutoCAD sí o sí lo abra en modo recuperación.
+    if (!remainder.includes("EOF")) {
+        console.warn("La sección remanente perdió consistencia. Forzando etiquetas de cierre DXF.");
+        remainder += `${helpers.nl}  0${helpers.nl}ENDSEC${helpers.nl}  0${helpers.nl}EOF${helpers.nl}`;
+    }
+    
     let finalStr = rawDxfContent.substring(0, injectionIndex) 
                    + customEntities 
-                   + rawDxfContent.substring(injectionIndex);
+                   + remainder;
                    
     // Update HANDSEED so AutoCAD doesn't crash on the new handles
     const handseedUpdate = helpers.getUpdatedHandseedString();
