@@ -231,9 +231,19 @@ function buildDxfEntityHelpers() {
     const ver = verMatch ? verMatch[1] : 'AC1015'; 
     const modern = ver >= 'AC1015';
 
-    // Buscamos el Handle único del bloque *Model_Space para asignarlo como propietario legítimo
-    const modelSpaceMatch = rawDxfContent.match(/  2[\s\r\n]+\*Model_Space[\s\S]{1,500}?  5[\s\r\n]+([0-9A-Fa-f]+)/i);
-    const modelSpaceHandle = modelSpaceMatch ? modelSpaceMatch[1] : null;
+    // Buscamos el Handle único del bloque *Model_Space para asignarlo como propietario legítimo.
+    // IMPORTANTE: En la sintaxis DXF, el grupo "5" (Handle) viene ANTES del grupo "2" (Nombre).
+    // Si buscamos hacia adelante después del "2", capturamos erróneamente el handle del *Paper_Space,
+    // lo que causa una contradicción fatal de espacios y el "pantallazo negro" en AutoCAD.
+    let modelSpaceHandle = null;
+    const modelSpaceMatch = rawDxfContent.match(/  0\r?\nBLOCK_RECORD\r?\n  5\r?\n([0-9A-Fa-f]+)[\s\S]{1,200}?  2\r?\n\*Model_Space/i);
+    if (modelSpaceMatch) {
+        modelSpaceHandle = modelSpaceMatch[1];
+    } else {
+        // Expresión de respaldo general que captura el 5 que antecede al 2 *Model_Space
+        const fallbackMatch = rawDxfContent.match(/  5\r?\n([0-9A-Fa-f]+)[\s\S]{1,200}?  2\r?\n\*Model_Space/i);
+        if (fallbackMatch) modelSpaceHandle = fallbackMatch[1];
+    }
 
     // Parse $HANDSEED to use valid contiguous handles and prevent AutoCAD crashes
     const handseedMatch = rawDxfContent.match(/\$HANDSEED[\s\r\n]+5[\s\r\n]+([0-9A-Fa-f]+)/);
