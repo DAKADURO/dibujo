@@ -342,11 +342,23 @@ function exportToDxf() {
         customEntities += dxfLine(m.p1.x, m.p1.y, m.p2.x, m.p2.y, m.color);
         const midX = (m.p1.x + m.p2.x) / 2;
         const midY = (m.p1.y + m.p2.y) / 2;
-        customEntities += dxfText(m.distance.toFixed(2), midX, midY + 50, 100, m.color);
+        
+        let screenScaleFactor = Math.min(1.0, viewState.scale / 15.0);
+        if (isNaN(screenScaleFactor) || screenScaleFactor <= 0.01) screenScaleFactor = 1.0;
+        
+        const dFontSize = Math.max(8, 14 * screenScaleFactor);
+        const dxfFontSize = dFontSize / viewState.scale;
+        
+        customEntities += dxfText(m.distance.toFixed(2), midX, midY + (dxfFontSize / 2), dxfFontSize, m.color);
     }
     
     // 3. Couplings
-    const cSizeX = 100, cSizeY = 40;
+    let screenScaleFactor = Math.min(1.0, viewState.scale / 15.0);
+    if (isNaN(screenScaleFactor) || screenScaleFactor <= 0.01) screenScaleFactor = 1.0;
+    
+    const cSizeX = (10 * screenScaleFactor) / viewState.scale;
+    const cSizeY = (4 * screenScaleFactor) / viewState.scale;
+    
     for (const c of virtualCouplings) {
         const cx = c.x, cy = c.y;
         const color = c.color || document.getElementById('cople-color-picker')?.value || '#ef4444';
@@ -362,7 +374,8 @@ function exportToDxf() {
     }
     
     // 4. Piping Symbols
-    const sSize = 140; // Equivalent to SYM_SIZE = 14
+    const sSize = (14 * screenScaleFactor) / viewState.scale; // Equivalent to SYM_SIZE = 14 on screen
+    
     for (const sym of pipingSymbols) {
         const cx = sym.dxfX, cy = sym.dxfY;
         const color = sym.color || '#06b6d4';
@@ -399,8 +412,8 @@ function exportToDxf() {
         else if (sym.d1) label += ` ${sym.d1}`;
         else if (sym.d2) label += ` ${sym.d2}`;
         
-        const pL = rotatePt(cx, cy, cx, cy + sSize + 50, a);
-        customEntities += dxfText(label, pL.x, pL.y, 80, color);
+        const pL = rotatePt(cx, cy, cx, cy + sSize + (4 / viewState.scale), a);
+        customEntities += dxfText(label, pL.x, pL.y, (10 * screenScaleFactor) / viewState.scale, color);
     }
     
     // 5. Find ENTITIES ENDSEC and inject
