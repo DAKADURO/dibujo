@@ -387,16 +387,17 @@ function exportToDxf() {
         const cx = sym.dxfX, cy = sym.dxfY;
         const color = sym.color || '#06b6d4';
         const a = sym.angle || 0;
+        const dxfAngle = -a; // Canvas is clockwise, DXF is counter-clockwise
         
         const drawLine = (x1, y1, x2, y2) => {
-            const p1 = rotatePt(cx, cy, cx + x1, cy + y1, a);
-            const p2 = rotatePt(cx, cy, cx + x2, cy + y2, a);
+            const p1 = rotatePt(cx, cy, cx + x1, cy + y1, dxfAngle);
+            const p2 = rotatePt(cx, cy, cx + x2, cy + y2, dxfAngle);
             customEntities += dxfLine(p1.x, p1.y, p2.x, p2.y, color);
         };
         
         if (sym.type === 'tee') {
             drawLine(-sSize, 0, sSize, 0);
-            drawLine(0, 0, 0, -sSize); // Y axis is inverted in canvas vs DXF? Actually, DXF Y is up. In our rotatePt, y is DXF y.
+            drawLine(0, 0, 0, -sSize);
         } else if (sym.type === 'codo') {
             drawLine(-sSize, 0, 0, 0);
             drawLine(0, 0, 0, -sSize);
@@ -419,8 +420,8 @@ function exportToDxf() {
         else if (sym.d1) label += ` ${sym.d1}`;
         else if (sym.d2) label += ` ${sym.d2}`;
         
-        const pL = rotatePt(cx, cy, cx, cy + sSize + (4 / viewState.scale), a);
-        customEntities += dxfText(label, pL.x, pL.y, (10 * screenScaleFactor) / viewState.scale, color, a, true);
+        const pL = rotatePt(cx, cy, cx, cy + sSize + (4 / viewState.scale), dxfAngle);
+        customEntities += dxfText(label, pL.x, pL.y, (10 * screenScaleFactor) / viewState.scale, color, dxfAngle, true);
     }
     
     // 5. Find ENTITIES ENDSEC and inject
