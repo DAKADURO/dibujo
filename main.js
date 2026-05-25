@@ -171,7 +171,7 @@ dxfInput.addEventListener('change', (e) => {
             loading.classList.add('hidden');
         }
     };
-    reader.readAsText(file);
+    reader.readAsText(file, 'windows-1252');
 });
 
 // ─── DXF Export Logic ───
@@ -431,8 +431,12 @@ function exportToDxf() {
         finalStr = finalStr.replace(handseedUpdate.oldStr, handseedUpdate.newStr);
     }
     
-    // Save as standard text blob (UTF-8)
-    const blob = new Blob([finalStr], { type: 'application/dxf' });
+    // Encode as 8-bit bytes (windows-1252 / latin1) to match original file and prevent AutoCAD corruption
+    const buffer = new Uint8Array(finalStr.length);
+    for (let i = 0; i < finalStr.length; i++) {
+        buffer[i] = finalStr.charCodeAt(i) & 0xFF;
+    }
+    const blob = new Blob([buffer], { type: 'application/dxf' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     const safeName = (window._currentFileName || currentFileName || 'plano').replace(/\.dxf$/i, '');
