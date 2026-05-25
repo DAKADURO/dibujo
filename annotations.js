@@ -81,7 +81,7 @@ export function setupAnnotations() {
     });
 
     document.getElementById('btn-export-pdf').addEventListener('click', () => {
-        const scaleFactor = 4; // Ultra alta calidad (4x resolución)
+        const scaleFactor = 8; // Calidad extrema (8x resolución)
         
         const dxfCanvas = document.getElementById('dxf-canvas');
         
