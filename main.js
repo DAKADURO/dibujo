@@ -642,8 +642,9 @@ function drawDxf() {
     
     ctx.translate(viewState.x, viewState.y);
     ctx.scale(viewState.scale, -viewState.scale);
-    
-    ctx.lineWidth = 1 / viewState.scale;
+    const exportScale = window.exportScaleFactor || 1;
+    // Hacer la línea proporcional al exportar en alta resolución para que no desaparezca
+    ctx.lineWidth = exportScale / viewState.scale;
     
     for (const ent of dxfData.entities) {
         ctx.strokeStyle = getEntityColor(ent);
@@ -875,10 +876,11 @@ function drawMeasurements() {
         // Scale font and lines dynamically to avoid clutter when zoomed out
         const scaleFactor = Math.min(1, screenDist / 80); // 80px screen length is "full size"
         
-        const dFontSize = Math.max(8, 14 * scaleFactor);
-        const dCrossSize = Math.max(3, 8 * scaleFactor);
-        const dLineWidth = Math.max(1, 2 * scaleFactor);
-        const dPad = Math.max(2, 6 * scaleFactor);
+        const exportScale = window.exportScaleFactor || 1;
+        const dFontSize = Math.max(8, 14 * scaleFactor) * exportScale;
+        const dCrossSize = Math.max(3, 8 * scaleFactor) * exportScale;
+        const dLineWidth = Math.max(1, 2 * scaleFactor) * exportScale;
+        const dPad = Math.max(2, 6 * scaleFactor) * exportScale;
         
         const isSelected = m.selected;
         const baseColor = m.color || '#06b6d4';
@@ -992,8 +994,9 @@ function findClosestSnapPoint(mouseDxfPt, maxScreenDist) {
 }
 
 function drawCross(x, y, size, color) {
+    const exportScale = window.exportScaleFactor || 1;
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2 * exportScale;
     ctx.beginPath();
     ctx.moveTo(x - size, y);
     ctx.lineTo(x + size, y);
@@ -1315,9 +1318,10 @@ function drawCouplings() {
         
         ctx.fillStyle = c.color || document.getElementById('cople-color-picker')?.value || '#ef4444'; // Default Red or selected color
         
+        const exportScale = window.exportScaleFactor || 1;
         let scaleFactor = Math.min(1.0, viewState.scale / 15.0);
         if (isNaN(scaleFactor) || scaleFactor <= 0.01) scaleFactor = 1.0;
-        ctx.scale(scaleFactor, scaleFactor);
+        ctx.scale(scaleFactor * exportScale, scaleFactor * exportScale);
         
         ctx.fillRect(-width/2, -height/2, width, height);
         ctx.strokeRect(-width/2, -height/2, width, height);
@@ -1354,10 +1358,11 @@ function drawSymbols() {
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         
+        const exportScale = window.exportScaleFactor || 1;
         // Scale down symbol visually when zoomed out to avoid clutter
         let scaleFactor = Math.min(1.0, viewState.scale / 15.0);
         if (isNaN(scaleFactor) || scaleFactor <= 0.01) scaleFactor = 1.0;
-        ctx.scale(scaleFactor, scaleFactor);
+        ctx.scale(scaleFactor * exportScale, scaleFactor * exportScale);
         
         const s = SYM_SIZE;
         

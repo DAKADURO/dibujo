@@ -111,6 +111,7 @@ export function setupAnnotations() {
         const oldSync = window.syncFabricSymbols;
         window.syncFabricSymbols = null;
 
+        window.exportScaleFactor = scaleFactor;
         if (window.forceDrawDxf) window.forceDrawDxf();
 
         fCanvas.setWidth(origFWidth * scaleFactor);
@@ -138,6 +139,7 @@ export function setupAnnotations() {
         pdf.save(`${safeName}_alta_calidad.pdf`);
 
         // Restaurar todo a la normalidad
+        window.exportScaleFactor = 1;
         dxfCanvas.width = origWidth;
         dxfCanvas.height = origHeight;
         
