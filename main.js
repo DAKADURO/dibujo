@@ -256,15 +256,22 @@ function buildDxfEntityHelpers() {
         }
     }
 
-    function dxfText(text, x, y, height, colorHex) {
+    function dxfText(text, x, y, height, colorHex, angle = 0, alignCenter = false) {
         if (isNaN(x) || isNaN(y) || isNaN(height) || !text) return '';
         const c = hexToAci(colorHex);
         const h = getNextDxfHandle();
+        const deg = (angle * 180 / Math.PI).toFixed(4);
+        
+        let alignStr = '';
+        if (alignCenter) {
+            alignStr = ` 72${nl}1${nl} 11${nl}${x.toFixed(4)}${nl} 21${nl}${y.toFixed(4)}${nl} 31${nl}0.0${nl}`;
+        }
+        
         if (modern) {
             const ownerStr = ownerHandle ? `330${nl}${ownerHandle}${nl}` : '';
-            return `  0${nl}TEXT${nl}  5${nl}${h}${nl}${ownerStr}100${nl}AcDbEntity${nl}  8${nl}0${nl} 62${nl}${c}${nl}100${nl}AcDbText${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl}`;
+            return `  0${nl}TEXT${nl}  5${nl}${h}${nl}${ownerStr}100${nl}AcDbEntity${nl}  8${nl}0${nl} 62${nl}${c}${nl}100${nl}AcDbText${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl} 50${nl}${deg}${nl}${alignStr}`;
         } else {
-            return `  0${nl}TEXT${nl}  8${nl}0${nl} 62${nl}${c}${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl}`;
+            return `  0${nl}TEXT${nl}  8${nl}0${nl} 62${nl}${c}${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl} 50${nl}${deg}${nl}${alignStr}`;
         }
     }
 
@@ -328,12 +335,12 @@ function exportToDxf() {
             customEntities += dxfLine(bl.x, bl.y, tl.x, tl.y, color);
         } else if (obj.type === 'i-text' || obj.type === 'text') {
             // Text object
-            // Fabric text origins are usually top-left or center.
             const center = obj.getCenterPoint();
             const pt = screenToDxf(center.x, center.y);
-            // Height in DXF units. If fontSize is 20px on screen, in DXF it's 20 / scale.
             const dxfHeight = (obj.fontSize * obj.scaleY) / viewState.scale;
-            customEntities += dxfText(obj.text, pt.x, pt.y, dxfHeight, color);
+            // Fabric uses degrees, clockwise. DXF uses counter-clockwise.
+            const radAngle = -(obj.angle || 0) * Math.PI / 180;
+            customEntities += dxfText(obj.text, pt.x, pt.y, dxfHeight, color, radAngle, true);
         }
     }
     
@@ -349,7 +356,7 @@ function exportToDxf() {
         const dFontSize = Math.max(8, 14 * screenScaleFactor);
         const dxfFontSize = dFontSize / viewState.scale;
         
-        customEntities += dxfText(m.distance.toFixed(2), midX, midY + (dxfFontSize / 2), dxfFontSize, m.color);
+        customEntities += dxfText(m.distance.toFixed(2), midX, midY + (dxfFontSize / 2), dxfFontSize, m.color, 0, true);
     }
     
     // 3. Couplings
@@ -413,7 +420,7 @@ function exportToDxf() {
         else if (sym.d2) label += ` ${sym.d2}`;
         
         const pL = rotatePt(cx, cy, cx, cy + sSize + (4 / viewState.scale), a);
-        customEntities += dxfText(label, pL.x, pL.y, (10 * screenScaleFactor) / viewState.scale, color);
+        customEntities += dxfText(label, pL.x, pL.y, (10 * screenScaleFactor) / viewState.scale, color, a, true);
     }
     
     // 5. Find ENTITIES ENDSEC and inject
