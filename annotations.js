@@ -1,6 +1,4 @@
-// ============================================================
-// annotations.js — Fabric.js annotation layer + tool switching
-// ============================================================
+import { jsPDF } from 'jspdf';
 
 let fCanvas;
 let currentMode = 'pan';
@@ -59,7 +57,8 @@ export function setupAnnotations() {
         }
     });
 
-    document.getElementById('btn-export').addEventListener('click', () => {
+    // Helper to merge canvases
+    function getMergedCanvas() {
         const dxfCanvas = document.getElementById('dxf-canvas');
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = dxfCanvas.width;
@@ -70,11 +69,28 @@ export function setupAnnotations() {
         ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
         ctx.drawImage(dxfCanvas, 0, 0);
         ctx.drawImage(fCanvas.getElement(), 0, 0);
-        
+        return tempCanvas;
+    }
+
+    document.getElementById('btn-export').addEventListener('click', () => {
+        const tempCanvas = getMergedCanvas();
         const link = document.createElement('a');
         link.download = 'plano_anotado.png';
         link.href = tempCanvas.toDataURL('image/png');
         link.click();
+    });
+
+    document.getElementById('btn-export-pdf').addEventListener('click', () => {
+        const tempCanvas = getMergedCanvas();
+        const imgData = tempCanvas.toDataURL('image/png', 1.0);
+        const pdf = new jsPDF({
+            orientation: tempCanvas.width > tempCanvas.height ? 'landscape' : 'portrait',
+            unit: 'px',
+            format: [tempCanvas.width, tempCanvas.height]
+        });
+        pdf.addImage(imgData, 'PNG', 0, 0, tempCanvas.width, tempCanvas.height);
+        const safeName = (window._currentFileName || 'plano').replace(/\.dxf$/i, '');
+        pdf.save(`${safeName}_anotado.pdf`);
     });
 
     // ─── Shape drawing (Rect) ───
