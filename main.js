@@ -440,33 +440,68 @@ function exportToDxf() {
         customEntities += dxfText(label, pL.x, pL.y, txtHeight, color, dxfAngle);
     }
     
-    // 5. Find ENTITIES ENDSEC and inject
-    const entitiesHeader = rawDxfContent.match(/2\s*\r?\nENTITIES/i);
-    if (!entitiesHeader) {
-        alert('No se pudo encontrar la sección ENTITIES en el archivo original.');
-        return;
+    // 5. ENCONTRAR EL FINAL REAL DE LA SECCIÓN ENTITIES
+    // En lugar de buscar el primer ENDSEC desde el inicio, buscamos la transición limpia hacia OBJECTS o el fin del archivo
+    const objectsHeader = rawDxfContent.match(/2\s*\r?\nOBJECTS/i);
+    
+    let injectionIndex = -1;
+    let remainder = "";
+
+    if (objectsHeader) {
+        // Si existe sección OBJECTS, buscamos el "0\nENDSEC" que está justo antes de ella
+        const antesDeObjects = rawDxfContent.substring(0, objectsHeader.index);
+        const ultimoEndsecIndex = antesDeObjects.lastIndexOf("ENDSEC");
+        
+        if (ultimoEndsecIndex !== -1) {
+            // Encontramos el ENDSEC de ENTITIES. Buscamos el '0' que va justo antes de ese ENDSEC
+            const fragmentoFiltro = antesDeObjects.substring(0, ultimoEndsecIndex);
+            const ceroIndex = fragmentoFiltro.lastIndexOf("0");
+            if (ceroIndex !== -1) {
+                // Retrocedemos uno o dos caracteres para abarcar los saltos de línea y no romper la sintaxis
+                const charBeforeZero = fragmentoFiltro.charAt(ceroIndex - 1);
+                const charBeforeZero2 = fragmentoFiltro.charAt(ceroIndex - 2);
+                if (charBeforeZero === '\n') {
+                    injectionIndex = charBeforeZero2 === '\r' ? ceroIndex - 2 : ceroIndex - 1;
+                } else {
+                    injectionIndex = ceroIndex;
+                }
+                
+                // Si el índice nos lleva al medio de un grupo (poco probable), al menos aseguramos que estamos al inicio de la línea
+                // Añadimos el salto de línea por seguridad para customEntities.
+                // En realidad customEntities debe empezar justo donde iría el '0' del ENDSEC
+                injectionIndex = ceroIndex; 
+            }
+        }
     }
-    const searchStartIndex = entitiesHeader.index + entitiesHeader[0].length;
-    const searchString = rawDxfContent.substring(searchStartIndex);
-    
-    // Find first ENDSEC after ENTITIES
-    const endsecMatch = searchString.match(/\n[ \t]*0[ \t]*\r?\n[ \t]*ENDSEC/i);
-    if (!endsecMatch) {
-        alert('No se pudo encontrar el fin de la sección ENTITIES.');
-        return;
+
+    // Plan de respaldo: Si no hay sección OBJECTS o falló la búsqueda estricta, 
+    // usamos tu método original pero asegurando que no corte a mitad de un bloque
+    if (injectionIndex === -1) {
+        const entitiesHeader = rawDxfContent.match(/2\s*\r?\nENTITIES/i);
+        if (!entitiesHeader) {
+            alert('No se pudo encontrar la sección ENTITIES en el archivo original.');
+            return;
+        }
+        const searchStartIndex = entitiesHeader.index + entitiesHeader[0].length;
+        const searchString = rawDxfContent.substring(searchStartIndex);
+        const endsecMatch = searchString.match(/\n[ \t]*0[ \t]*\r?\n[ \t]*ENDSEC/i);
+        
+        if (!endsecMatch) {
+            alert('No se pudo encontrar el fin de la sección ENTITIES.');
+            return;
+        }
+        injectionIndex = searchStartIndex + endsecMatch.index + 1; // +1 to keep the preceding \n
     }
-    // Inject right before the "\n  0\nENDSEC" so we're still inside ENTITIES
-    const injectionIndex = searchStartIndex + endsecMatch.index + 1; // +1 to keep the preceding \n
+
+    remainder = rawDxfContent.substring(injectionIndex);
     
-    let remainder = rawDxfContent.substring(injectionIndex);
-    
-    // CONTROL DE SEGURIDAD PARANOICO: Si por corrupción de strings el "remainder" no contiene el EOF final,
-    // forzamos el cierre de la sección y del archivo para que AutoCAD sí o sí lo abra en modo recuperación.
+    // CONTROL DE SEGURIDAD PARANOICO
     if (!remainder.includes("EOF")) {
         console.warn("La sección remanente perdió consistencia. Forzando etiquetas de cierre DXF.");
         remainder += `${helpers.nl}  0${helpers.nl}ENDSEC${helpers.nl}  0${helpers.nl}EOF${helpers.nl}`;
     }
     
+    // Unimos las partes de forma segura
     let finalStr = rawDxfContent.substring(0, injectionIndex) 
                    + customEntities 
                    + remainder;
