@@ -326,7 +326,7 @@ function rotatePt(cx, cy, px, py, angle) {
     };
 }
 
-function exportToDxf() {
+export function generateModifiedDxfBlob() {
     // Get version/NL-aware entity builder
     const helpers = buildDxfEntityHelpers();
     const { dxfLine, dxfText } = helpers;
@@ -537,12 +537,18 @@ function exportToDxf() {
         finalStr = finalStr.replace(handseedUpdate.oldStr, handseedUpdate.newStr);
     }
     
-    // Encode as 8-bit bytes (windows-1252 / latin1) to match original file and prevent AutoCAD corruption
     const buffer = new Uint8Array(finalStr.length);
     for (let i = 0; i < finalStr.length; i++) {
         buffer[i] = finalStr.charCodeAt(i) & 0xFF;
     }
     const blob = new Blob([buffer], { type: 'application/dxf' });
+    return blob;
+}
+window.generateModifiedDxfBlob = generateModifiedDxfBlob;
+
+export function exportToDxf() {
+    const blob = generateModifiedDxfBlob();
+    if (!blob) return;
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     const safeName = (window._currentFileName || currentFileName || 'plano').replace(/\.dxf$/i, '');

@@ -80,82 +80,49 @@ export function setupAnnotations() {
         link.click();
     });
 
-    document.getElementById('btn-export-pdf').addEventListener('click', () => {
-        const scaleFactor = 8; // Calidad extrema (8x resolución)
-        
-        const dxfCanvas = document.getElementById('dxf-canvas');
-        
-        // Guardar estado original
-        const origWidth = dxfCanvas.width;
-        const origHeight = dxfCanvas.height;
-        const origScale = window.viewState ? window.viewState.scale : 1;
-        const origX = window.viewState ? window.viewState.x : 0;
-        const origY = window.viewState ? window.viewState.y : 0;
-        
-        const origFWidth = fCanvas.getWidth();
-        const origFHeight = fCanvas.getHeight();
-        const origFZoom = fCanvas.getZoom();
-
-        // Aplicar escala alta
-        dxfCanvas.width = origWidth * scaleFactor;
-        dxfCanvas.height = origHeight * scaleFactor;
-        
-        if (window.viewState) {
-            window.viewState.scale = origScale * scaleFactor;
-            window.viewState.x = origX * scaleFactor;
-            window.viewState.y = origY * scaleFactor;
+    document.getElementById('btn-export-pdf').addEventListener('click', async () => {
+        if (!window.generateModifiedDxfBlob) {
+            alert('Error: generador DXF no está disponible.');
+            return;
         }
 
-        // Deshabilitar sincronización de símbolos de fabric temporalmente 
-        // para que fCanvas.setZoom() haga todo el trabajo visual sin doble escala
-        const oldSync = window.syncFabricSymbols;
-        window.syncFabricSymbols = null;
-
-        window.exportScaleFactor = scaleFactor;
-        if (window.forceDrawDxf) window.forceDrawDxf();
-
-        fCanvas.setWidth(origFWidth * scaleFactor);
-        fCanvas.setHeight(origFHeight * scaleFactor);
-        fCanvas.setZoom(origFZoom * scaleFactor);
-        fCanvas.renderAll();
-
-        const tempCanvas = getMergedCanvas();
-        // Usar PNG para evitar artefactos de compresión en las líneas del plano
-        const imgData = tempCanvas.toDataURL('image/png');
+        const btn = document.getElementById('btn-export-pdf');
+        const oldText = btn.innerHTML;
+        btn.innerHTML = "Exportando...";
+        btn.style.pointerEvents = "none";
         
-        // En jsPDF, el formato de la hoja es en píxeles originales para que 
-        // al imprimir tenga el tamaño correcto de vista, pero la imagen 
-        // interna (imgData) es 4x más grande, dando ultra resolución al hacer zoom
-        const pdf = new jsPDF({
-            orientation: origWidth > origHeight ? 'landscape' : 'portrait',
-            unit: 'px',
-            format: [origWidth, origHeight]
-        });
-        
-        // Pintamos la imagen 4x en el lienzo 1x del PDF
-        pdf.addImage(imgData, 'PNG', 0, 0, origWidth, origHeight);
-        
-        const safeName = (window._currentFileName || 'plano').replace(/\.dxf$/i, '');
-        pdf.save(`${safeName}_alta_calidad.pdf`);
+        try {
+            const blob = window.generateModifiedDxfBlob();
+            if (!blob) throw new Error("No hay archivo DXF cargado o no se pudo generar.");
+            
+            const formData = new FormData();
+            formData.append("file", blob, "plano_con_anotaciones.dxf");
 
-        // Restaurar todo a la normalidad
-        window.exportScaleFactor = 1;
-        dxfCanvas.width = origWidth;
-        dxfCanvas.height = origHeight;
-        
-        if (window.viewState) {
-            window.viewState.scale = origScale;
-            window.viewState.x = origX;
-            window.viewState.y = origY;
+            const response = await fetch("http://127.0.0.1:8000/export/pdf", {
+                method: "POST",
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error("Error del servidor: " + errorText);
+            }
+
+            const pdfBlob = await response.blob();
+            const url = URL.createObjectURL(pdfBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            const safeName = (window._currentFileName || 'plano').replace(/\.dxf$/i, '');
+            a.download = `${safeName}_Vector_Alta_Calidad.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            alert("Error al exportar PDF Vectorial: " + e.message);
+            console.error(e);
+        } finally {
+            btn.innerHTML = oldText;
+            btn.style.pointerEvents = "auto";
         }
-        
-        window.syncFabricSymbols = oldSync;
-        if (window.forceDrawDxf) window.forceDrawDxf();
-        
-        fCanvas.setWidth(origFWidth);
-        fCanvas.setHeight(origFHeight);
-        fCanvas.setZoom(origFZoom);
-        fCanvas.renderAll();
     });
 
     // ─── Shape drawing (Rect) ───
