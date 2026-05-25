@@ -441,41 +441,33 @@ function exportToDxf() {
     }
     
     // 5. ENCONTRAR EL FINAL REAL DE LA SECCIÓN ENTITIES
-    // En lugar de buscar el primer ENDSEC desde el inicio, buscamos la transición limpia hacia OBJECTS o el fin del archivo
+    const nl = helpers.nl; // Usamos el salto de línea detectado (\r\n o \n)
     const objectsHeader = rawDxfContent.match(/2\s*\r?\nOBJECTS/i);
     
     let injectionIndex = -1;
-    let remainder = "";
 
     if (objectsHeader) {
-        // Si existe sección OBJECTS, buscamos el "0\nENDSEC" que está justo antes de ella
+        // Obtenemos todo el texto antes de "2\nOBJECTS"
         const antesDeObjects = rawDxfContent.substring(0, objectsHeader.index);
-        const ultimoEndsecIndex = antesDeObjects.lastIndexOf("ENDSEC");
+        
+        // Buscamos de atrás hacia adelante la etiqueta exacta de cierre "0\nENDSEC"
+        // que da fin a la sección ENTITIES
+        // DXF structure commonly pads with spaces, so we allow them
+        // But since we are looking backwards, exact string match is safer.
+        // Wait, what if there's leading spaces? "  0"
+        const patronEndsec = `  0${nl}ENDSEC`;
+        let ultimoEndsecIndex = antesDeObjects.lastIndexOf(patronEndsec);
+        if (ultimoEndsecIndex === -1) {
+             ultimoEndsecIndex = antesDeObjects.lastIndexOf(`0${nl}ENDSEC`);
+        }
         
         if (ultimoEndsecIndex !== -1) {
-            // Encontramos el ENDSEC de ENTITIES. Buscamos el '0' que va justo antes de ese ENDSEC
-            const fragmentoFiltro = antesDeObjects.substring(0, ultimoEndsecIndex);
-            const ceroIndex = fragmentoFiltro.lastIndexOf("0");
-            if (ceroIndex !== -1) {
-                // Retrocedemos uno o dos caracteres para abarcar los saltos de línea y no romper la sintaxis
-                const charBeforeZero = fragmentoFiltro.charAt(ceroIndex - 1);
-                const charBeforeZero2 = fragmentoFiltro.charAt(ceroIndex - 2);
-                if (charBeforeZero === '\n') {
-                    injectionIndex = charBeforeZero2 === '\r' ? ceroIndex - 2 : ceroIndex - 1;
-                } else {
-                    injectionIndex = ceroIndex;
-                }
-                
-                // Si el índice nos lleva al medio de un grupo (poco probable), al menos aseguramos que estamos al inicio de la línea
-                // Añadimos el salto de línea por seguridad para customEntities.
-                // En realidad customEntities debe empezar justo donde iría el '0' del ENDSEC
-                injectionIndex = ceroIndex; 
-            }
+            // Inyectamos exactamente ANTES del '0' de ese ENDSEC para quedarnos dentro de ENTITIES
+            injectionIndex = ultimoEndsecIndex;
         }
     }
 
-    // Plan de respaldo: Si no hay sección OBJECTS o falló la búsqueda estricta, 
-    // usamos tu método original pero asegurando que no corte a mitad de un bloque
+    // Plan de respaldo: si falla la búsqueda por OBJECTS, usamos una aproximación segura
     if (injectionIndex === -1) {
         const entitiesHeader = rawDxfContent.match(/2\s*\r?\nENTITIES/i);
         if (!entitiesHeader) {
@@ -484,16 +476,24 @@ function exportToDxf() {
         }
         const searchStartIndex = entitiesHeader.index + entitiesHeader[0].length;
         const searchString = rawDxfContent.substring(searchStartIndex);
-        const endsecMatch = searchString.match(/\n[ \t]*0[ \t]*\r?\n[ \t]*ENDSEC/i);
         
-        if (!endsecMatch) {
+        // Buscamos el primer "  0\nENDSEC" o "0\nENDSEC" después de ENTITIES
+        let patronEndsec = `  0${nl}ENDSEC`;
+        let endsecMatch = searchString.indexOf(patronEndsec);
+        if (endsecMatch === -1) {
+             patronEndsec = `0${nl}ENDSEC`;
+             endsecMatch = searchString.indexOf(patronEndsec);
+        }
+        
+        if (endsecMatch === -1) {
             alert('No se pudo encontrar el fin de la sección ENTITIES.');
             return;
         }
-        injectionIndex = searchStartIndex + endsecMatch.index + 1; // +1 to keep the preceding \n
+        injectionIndex = searchStartIndex + endsecMatch;
     }
 
-    remainder = rawDxfContent.substring(injectionIndex);
+    // El remanente ahora iniciará exactamente con "0\nENDSEC\n  2\nOBJECTS..." o similar
+    let remainder = rawDxfContent.substring(injectionIndex);
     
     // CONTROL DE SEGURIDAD PARANOICO
     if (!remainder.includes("EOF")) {
@@ -501,7 +501,7 @@ function exportToDxf() {
         remainder += `${helpers.nl}  0${helpers.nl}ENDSEC${helpers.nl}  0${helpers.nl}EOF${helpers.nl}`;
     }
     
-    // Unimos las partes de forma segura
+    // Concatenamos las partes manteniendo la estructura perfecta
     let finalStr = rawDxfContent.substring(0, injectionIndex) 
                    + customEntities 
                    + remainder;
