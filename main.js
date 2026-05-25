@@ -119,8 +119,19 @@ dxfInput.addEventListener('change', (e) => {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-        const fileContent = event.target.result;
-        rawDxfContent = fileContent; // Save raw content for exporting later
+        const buffer = event.target.result;
+        rawDxfBytes = new Uint8Array(buffer);
+        
+        // Convert to 1-to-1 string without corrupting binary data for export
+        const CHUNK_SIZE = 0x8000;
+        const chars = [];
+        for (let i = 0; i < rawDxfBytes.length; i += CHUNK_SIZE) {
+            chars.push(String.fromCharCode.apply(null, rawDxfBytes.subarray(i, i + CHUNK_SIZE)));
+        }
+        rawDxfContent = chars.join('');
+        
+        // Decode text for the DXF Parser (preserves accents)
+        const parserContent = new TextDecoder('windows-1252').decode(rawDxfBytes);
         const parser = new DxfParser();
         
         // Monkey-patch ATTRIB and ATTDEF support
@@ -144,7 +155,7 @@ dxfInput.addEventListener('change', (e) => {
         }
 
         try {
-            dxfData = parser.parseSync(fileContent);
+            dxfData = parser.parseSync(parserContent);
             console.log('DXF Parsed:', dxfData);
             fitToScreen();
             
@@ -171,7 +182,7 @@ dxfInput.addEventListener('change', (e) => {
             loading.classList.add('hidden');
         }
     };
-    reader.readAsText(file, 'windows-1252');
+    reader.readAsArrayBuffer(file);
 });
 
 // ─── DXF Export Logic ───
