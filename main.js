@@ -231,8 +231,7 @@ function buildDxfEntityHelpers() {
     const ver = verMatch ? verMatch[1] : 'AC1015'; 
     const modern = ver >= 'AC1015';
 
-    // 1. OBTENER EL PUNTERO EXACTO DEL MODEL SPACE
-    // Buscamos el bloque de registros del Model_Space para heredar su Handle de propiedad correcto
+    // Buscamos el Handle único del bloque *Model_Space para asignarlo como propietario legítimo
     const modelSpaceMatch = rawDxfContent.match(/  2[\s\r\n]+\*Model_Space[\s\S]{1,500}?  5[\s\r\n]+([0-9A-Fa-f]+)/i);
     const modelSpaceHandle = modelSpaceMatch ? modelSpaceMatch[1] : null;
 
@@ -254,27 +253,31 @@ function buildDxfEntityHelpers() {
         };
     }
 
-    // 2. GENERADOR DE LÍNEAS CORREGIDO
+    // GENERADOR DE LÍNEAS BLINDADO
     function dxfLine(x1, y1, x2, y2, colorHex) {
         if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2)) return '';
         const c = hexToAci(colorHex);
         const h = getNextDxfHandle();
         
         let str = `  0${nl}LINE${nl}  5${nl}${h}${nl}`;
-        // Si tenemos el puntero del Model Space, se lo asignamos como owner (grupo 330)
         if (modern && modelSpaceHandle) {
             str += `330${nl}${modelSpaceHandle}${nl}`;
         }
-        if (modern) str += `100${nl}AcDbEntity${nl}`;
-        // Grupo 67 en 0 fuerza a que aparezca explícitamente en el Model Space visible
-        str += ` 67${nl}     0${nl}  8${nl}0${nl} 62${nl}${c}${nl}`;
-        if (modern) str += `100${nl}AcDbLine${nl}`;
-        str += ` 10${nl}${x1.toFixed(4)}${nl} 20${nl}${y1.toFixed(4)}${nl} 30${nl}0.0${nl} 11${nl}${x2.toFixed(4)}${nl} 21${nl}${y2.toFixed(4)}${nl} 31${nl}0.0${nl}`;
+        if (modern) {
+            str += `100${nl}AcDbEntity${nl}`;
+        }
+        // Forzamos grupo 67 en 0 (Model Space) y grupo 8 en capa "0" estándar
+        str += ` 67${nl}     0${nl}  8${nl}0${nl} 62${nl}${c.toString().padStart(6, ' ')}${nl}`;
+        if (modern) {
+            str += `100${nl}AcDbLine${nl}`;
+        }
+        str += ` 10${nl}${x1.toFixed(4)}${nl} 20${nl}${y1.toFixed(4)}${nl} 30${nl}0.0${nl}`;
+        str += ` 11${nl}${x2.toFixed(4)}${nl} 21${nl}${y2.toFixed(4)}${nl} 31${nl}0.0${nl}`;
         
         return str;
     }
 
-    // 3. GENERADOR DE TEXTO CORREGIDO
+    // GENERADOR DE TEXTO BLINDADO
     function dxfText(text, x, y, height, colorHex, angle = 0) {
         if (isNaN(x) || isNaN(y) || isNaN(height) || !text) return '';
         const c = hexToAci(colorHex);
@@ -285,10 +288,18 @@ function buildDxfEntityHelpers() {
         if (modern && modelSpaceHandle) {
             str += `330${nl}${modelSpaceHandle}${nl}`;
         }
-        if (modern) str += `100${nl}AcDbEntity${nl}`;
-        str += ` 67${nl}     0${nl}  8${nl}0${nl} 62${nl}${c}${nl}`;
-        if (modern) str += `100${nl}AcDbText${nl}`;
-        str += ` 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl} 50${nl}${deg}${nl}`;
+        if (modern) {
+            str += `100${nl}AcDbEntity${nl}`;
+        }
+        str += ` 67${nl}     0${nl}  8${nl}0${nl} 62${nl}${c.toString().padStart(6, ' ')}${nl}`;
+        if (modern) {
+            str += `100${nl}AcDbText${nl}`;
+        }
+        str += ` 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl}`;
+        str += ` 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl}`;
+        if (parseFloat(deg) !== 0) {
+            str += ` 50${nl}${deg}${nl}`;
+        }
         
         return str;
     }
