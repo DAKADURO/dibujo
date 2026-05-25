@@ -226,16 +226,14 @@ function hexToAci(hex) {
 function buildDxfEntityHelpers() {
     const nl = rawDxfContent.includes('\r\n') ? '\r\n' : '\n';
 
-    // DXF variable blocks have group code 9 for name, then group code 1 for string value.
-    // We simply look for the next "AC10xx" string shortly after $ACADVER.
     const verMatch = rawDxfContent.match(/\$ACADVER[\s\S]{1,50}?(AC10[0-9]{2})/);
-    const ver = verMatch ? verMatch[1] : 'AC1015'; // Default to modern if unknown
+    const ver = verMatch ? verMatch[1] : 'AC1015'; 
     const modern = ver >= 'AC1015';
 
-    // Find the owner handle (330) of the first entity in the ENTITIES section
-    const entitiesIdx = rawDxfContent.indexOf('ENTITIES');
-    const ownerMatch = entitiesIdx !== -1 ? rawDxfContent.substring(entitiesIdx, entitiesIdx + 5000).match(/330[\s\r\n]+([0-9A-Fa-f]+)/) : null;
-    const ownerHandle = ownerMatch ? ownerMatch[1] : null;
+    // 1. OBTENER EL PUNTERO EXACTO DEL MODEL SPACE
+    // Buscamos el bloque de registros del Model_Space para heredar su Handle de propiedad correcto
+    const modelSpaceMatch = rawDxfContent.match(/  2[\s\r\n]+\*Model_Space[\s\S]{1,500}?  5[\s\r\n]+([0-9A-Fa-f]+)/i);
+    const modelSpaceHandle = modelSpaceMatch ? modelSpaceMatch[1] : null;
 
     // Parse $HANDSEED to use valid contiguous handles and prevent AutoCAD crashes
     const handseedMatch = rawDxfContent.match(/\$HANDSEED[\s\r\n]+5[\s\r\n]+([0-9A-Fa-f]+)/);
@@ -255,21 +253,27 @@ function buildDxfEntityHelpers() {
         };
     }
 
+    // 2. GENERADOR DE LÍNEAS CORREGIDO
     function dxfLine(x1, y1, x2, y2, colorHex) {
         if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2)) return '';
         const c = hexToAci(colorHex);
         const h = getNextDxfHandle();
         
         let str = `  0${nl}LINE${nl}  5${nl}${h}${nl}`;
-        if (modern && ownerHandle) str += `330${nl}${ownerHandle}${nl}`;
+        // Si tenemos el puntero del Model Space, se lo asignamos como owner (grupo 330)
+        if (modern && modelSpaceHandle) {
+            str += `330${nl}${modelSpaceHandle}${nl}`;
+        }
         if (modern) str += `100${nl}AcDbEntity${nl}`;
-        str += `  8${nl}0${nl} 62${nl}${c}${nl}`;
+        // Grupo 67 en 0 fuerza a que aparezca explícitamente en el Model Space visible
+        str += ` 67${nl}     0${nl}  8${nl}0${nl} 62${nl}${c}${nl}`;
         if (modern) str += `100${nl}AcDbLine${nl}`;
         str += ` 10${nl}${x1.toFixed(4)}${nl} 20${nl}${y1.toFixed(4)}${nl} 30${nl}0.0${nl} 11${nl}${x2.toFixed(4)}${nl} 21${nl}${y2.toFixed(4)}${nl} 31${nl}0.0${nl}`;
         
         return str;
     }
 
+    // 3. GENERADOR DE TEXTO CORREGIDO
     function dxfText(text, x, y, height, colorHex, angle = 0) {
         if (isNaN(x) || isNaN(y) || isNaN(height) || !text) return '';
         const c = hexToAci(colorHex);
@@ -277,9 +281,11 @@ function buildDxfEntityHelpers() {
         const deg = (angle * 180 / Math.PI).toFixed(4);
         
         let str = `  0${nl}TEXT${nl}  5${nl}${h}${nl}`;
-        if (modern && ownerHandle) str += `330${nl}${ownerHandle}${nl}`;
+        if (modern && modelSpaceHandle) {
+            str += `330${nl}${modelSpaceHandle}${nl}`;
+        }
         if (modern) str += `100${nl}AcDbEntity${nl}`;
-        str += `  8${nl}0${nl} 62${nl}${c}${nl}`;
+        str += ` 67${nl}     0${nl}  8${nl}0${nl} 62${nl}${c}${nl}`;
         if (modern) str += `100${nl}AcDbText${nl}`;
         str += ` 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl} 50${nl}${deg}${nl}`;
         
