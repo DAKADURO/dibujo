@@ -256,22 +256,17 @@ function buildDxfEntityHelpers() {
         }
     }
 
-    function dxfText(text, x, y, height, colorHex, angle = 0, alignCenter = false) {
+    function dxfText(text, x, y, height, colorHex, angle = 0) {
         if (isNaN(x) || isNaN(y) || isNaN(height) || !text) return '';
         const c = hexToAci(colorHex);
         const h = getNextDxfHandle();
         const deg = (angle * 180 / Math.PI).toFixed(4);
         
-        let alignStr = '';
-        if (alignCenter) {
-            alignStr = ` 72${nl}1${nl} 11${nl}${x.toFixed(4)}${nl} 21${nl}${y.toFixed(4)}${nl} 31${nl}0.0${nl}`;
-        }
-        
         if (modern) {
             const ownerStr = ownerHandle ? `330${nl}${ownerHandle}${nl}` : '';
-            return `  0${nl}TEXT${nl}  5${nl}${h}${nl}${ownerStr}100${nl}AcDbEntity${nl}  8${nl}0${nl} 62${nl}${c}${nl}100${nl}AcDbText${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl} 50${nl}${deg}${nl}${alignStr}`;
+            return `  0${nl}TEXT${nl}  5${nl}${h}${nl}${ownerStr}100${nl}AcDbEntity${nl}  8${nl}0${nl} 62${nl}${c}${nl}100${nl}AcDbText${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl} 50${nl}${deg}${nl}`;
         } else {
-            return `  0${nl}TEXT${nl}  8${nl}0${nl} 62${nl}${c}${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl} 50${nl}${deg}${nl}${alignStr}`;
+            return `  0${nl}TEXT${nl}  8${nl}0${nl} 62${nl}${c}${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl} 50${nl}${deg}${nl}`;
         }
     }
 
@@ -334,13 +329,15 @@ function exportToDxf() {
             customEntities += dxfLine(br.x, br.y, bl.x, bl.y, color);
             customEntities += dxfLine(bl.x, bl.y, tl.x, tl.y, color);
         } else if (obj.type === 'i-text' || obj.type === 'text') {
-            // Text object
             const center = obj.getCenterPoint();
             const pt = screenToDxf(center.x, center.y);
             const dxfHeight = (obj.fontSize * obj.scaleY) / viewState.scale;
-            // Fabric uses degrees, clockwise. DXF uses counter-clockwise.
             const radAngle = -(obj.angle || 0) * Math.PI / 180;
-            customEntities += dxfText(obj.text, pt.x, pt.y, dxfHeight, color, radAngle, true);
+            const textWidth = obj.text.length * dxfHeight * 0.6;
+            
+            // Shift left by textWidth/2 in DXF coordinates
+            const pStart = rotatePt(pt.x, pt.y, pt.x - textWidth/2, pt.y - dxfHeight/2, radAngle);
+            customEntities += dxfText(obj.text, pStart.x, pStart.y, dxfHeight, color, radAngle);
         }
     }
     
@@ -356,7 +353,9 @@ function exportToDxf() {
         const dFontSize = Math.max(8, 14 * screenScaleFactor);
         const dxfFontSize = dFontSize / viewState.scale;
         
-        customEntities += dxfText(m.distance.toFixed(2), midX, midY + (dxfFontSize / 2), dxfFontSize, m.color, 0, true);
+        const textStr = m.distance.toFixed(2);
+        const textWidth = textStr.length * dxfFontSize * 0.6;
+        customEntities += dxfText(textStr, midX - textWidth / 2, midY + (dxfFontSize / 2), dxfFontSize, m.color);
     }
     
     // 3. Couplings
@@ -381,13 +380,13 @@ function exportToDxf() {
     }
     
     // 4. Piping Symbols
-    const sSize = (14 * screenScaleFactor) / viewState.scale; // Equivalent to SYM_SIZE = 14 on screen
+    const sSize = (14 * screenScaleFactor) / viewState.scale; 
     
     for (const sym of pipingSymbols) {
         const cx = sym.dxfX, cy = sym.dxfY;
         const color = sym.color || '#06b6d4';
         const a = sym.angle || 0;
-        const dxfAngle = -a; // Canvas is clockwise, DXF is counter-clockwise
+        const dxfAngle = -a; 
         
         const drawLine = (x1, y1, x2, y2) => {
             const p1 = rotatePt(cx, cy, cx + x1, cy + y1, dxfAngle);
@@ -414,14 +413,15 @@ function exportToDxf() {
             drawLine(0, -sSize*0.7, 0, sSize*0.7);
         }
         
-        // Add text label - no accented chars for Latin-1 safety
         let label = sym.type === 'tapon' ? 'Tapon' : sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
         if (sym.d1 && sym.d2) label += ` ${sym.d1}x${sym.d2}`;
         else if (sym.d1) label += ` ${sym.d1}`;
         else if (sym.d2) label += ` ${sym.d2}`;
         
-        const pL = rotatePt(cx, cy, cx, cy + sSize + (4 / viewState.scale), dxfAngle);
-        customEntities += dxfText(label, pL.x, pL.y, (10 * screenScaleFactor) / viewState.scale, color, dxfAngle, true);
+        const txtHeight = (10 * screenScaleFactor) / viewState.scale;
+        const txtWidth = label.length * txtHeight * 0.6;
+        const pL = rotatePt(cx, cy, cx - txtWidth/2, cy + sSize + (4 / viewState.scale), dxfAngle);
+        customEntities += dxfText(label, pL.x, pL.y, txtHeight, color, dxfAngle);
     }
     
     // 5. Find ENTITIES ENDSEC and inject
