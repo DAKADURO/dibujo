@@ -249,12 +249,14 @@ function buildDxfEntityHelpers() {
         const c = hexToAci(colorHex);
         const h = getNextDxfHandle();
         
-        let headerStr = `  5${nl}${h}${nl}`;
-        if (modern && ownerHandle) {
-            headerStr += `330${nl}${ownerHandle}${nl}`;
-        }
+        let str = `  0${nl}LINE${nl}  5${nl}${h}${nl}`;
+        if (modern && ownerHandle) str += `330${nl}${ownerHandle}${nl}`;
+        if (modern) str += `100${nl}AcDbEntity${nl}`;
+        str += `  8${nl}0${nl} 62${nl}${c}${nl}`;
+        if (modern) str += `100${nl}AcDbLine${nl}`;
+        str += ` 10${nl}${x1.toFixed(4)}${nl} 20${nl}${y1.toFixed(4)}${nl} 30${nl}0.0${nl} 11${nl}${x2.toFixed(4)}${nl} 21${nl}${y2.toFixed(4)}${nl} 31${nl}0.0${nl}`;
         
-        return `  0${nl}LINE${nl}${headerStr}  8${nl}0${nl} 62${nl}${c}${nl} 10${nl}${x1.toFixed(4)}${nl} 20${nl}${y1.toFixed(4)}${nl} 30${nl}0.0${nl} 11${nl}${x2.toFixed(4)}${nl} 21${nl}${y2.toFixed(4)}${nl} 31${nl}0.0${nl}`;
+        return str;
     }
 
     function dxfText(text, x, y, height, colorHex, angle = 0) {
@@ -263,12 +265,14 @@ function buildDxfEntityHelpers() {
         const h = getNextDxfHandle();
         const deg = (angle * 180 / Math.PI).toFixed(4);
         
-        let headerStr = `  5${nl}${h}${nl}`;
-        if (modern && ownerHandle) {
-            headerStr += `330${nl}${ownerHandle}${nl}`;
-        }
+        let str = `  0${nl}TEXT${nl}  5${nl}${h}${nl}`;
+        if (modern && ownerHandle) str += `330${nl}${ownerHandle}${nl}`;
+        if (modern) str += `100${nl}AcDbEntity${nl}`;
+        str += `  8${nl}0${nl} 62${nl}${c}${nl}`;
+        if (modern) str += `100${nl}AcDbText${nl}`;
+        str += ` 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl} 50${nl}${deg}${nl}`;
         
-        return `  0${nl}TEXT${nl}${headerStr}  8${nl}0${nl} 62${nl}${c}${nl} 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl} 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl} 50${nl}${deg}${nl}`;
+        return str;
     }
 
     return { dxfLine, dxfText, nl, getUpdatedHandseedString };
