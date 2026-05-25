@@ -119,8 +119,8 @@ export function setupAnnotations() {
         fCanvas.renderAll();
 
         const tempCanvas = getMergedCanvas();
-        // Usar JPEG de alta calidad para reducir peso extremo, o PNG
-        const imgData = tempCanvas.toDataURL('image/jpeg', 0.95);
+        // Usar PNG para evitar artefactos de compresión en las líneas del plano
+        const imgData = tempCanvas.toDataURL('image/png');
         
         // En jsPDF, el formato de la hoja es en píxeles originales para que 
         // al imprimir tenga el tamaño correcto de vista, pero la imagen 
@@ -132,7 +132,7 @@ export function setupAnnotations() {
         });
         
         // Pintamos la imagen 4x en el lienzo 1x del PDF
-        pdf.addImage(imgData, 'JPEG', 0, 0, origWidth, origHeight);
+        pdf.addImage(imgData, 'PNG', 0, 0, origWidth, origHeight);
         
         const safeName = (window._currentFileName || 'plano').replace(/\.dxf$/i, '');
         pdf.save(`${safeName}_alta_calidad.pdf`);
