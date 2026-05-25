@@ -81,16 +81,79 @@ export function setupAnnotations() {
     });
 
     document.getElementById('btn-export-pdf').addEventListener('click', () => {
+        const scaleFactor = 4; // Ultra alta calidad (4x resolución)
+        
+        const dxfCanvas = document.getElementById('dxf-canvas');
+        
+        // Guardar estado original
+        const origWidth = dxfCanvas.width;
+        const origHeight = dxfCanvas.height;
+        const origScale = window.viewState ? window.viewState.scale : 1;
+        const origX = window.viewState ? window.viewState.x : 0;
+        const origY = window.viewState ? window.viewState.y : 0;
+        
+        const origFWidth = fCanvas.getWidth();
+        const origFHeight = fCanvas.getHeight();
+        const origFZoom = fCanvas.getZoom();
+
+        // Aplicar escala alta
+        dxfCanvas.width = origWidth * scaleFactor;
+        dxfCanvas.height = origHeight * scaleFactor;
+        
+        if (window.viewState) {
+            window.viewState.scale = origScale * scaleFactor;
+            window.viewState.x = origX * scaleFactor;
+            window.viewState.y = origY * scaleFactor;
+        }
+
+        // Deshabilitar sincronización de símbolos de fabric temporalmente 
+        // para que fCanvas.setZoom() haga todo el trabajo visual sin doble escala
+        const oldSync = window.syncFabricSymbols;
+        window.syncFabricSymbols = null;
+
+        if (window.forceDrawDxf) window.forceDrawDxf();
+
+        fCanvas.setWidth(origFWidth * scaleFactor);
+        fCanvas.setHeight(origFHeight * scaleFactor);
+        fCanvas.setZoom(origFZoom * scaleFactor);
+        fCanvas.renderAll();
+
         const tempCanvas = getMergedCanvas();
-        const imgData = tempCanvas.toDataURL('image/png', 1.0);
+        // Usar JPEG de alta calidad para reducir peso extremo, o PNG
+        const imgData = tempCanvas.toDataURL('image/jpeg', 0.95);
+        
+        // En jsPDF, el formato de la hoja es en píxeles originales para que 
+        // al imprimir tenga el tamaño correcto de vista, pero la imagen 
+        // interna (imgData) es 4x más grande, dando ultra resolución al hacer zoom
         const pdf = new jsPDF({
-            orientation: tempCanvas.width > tempCanvas.height ? 'landscape' : 'portrait',
+            orientation: origWidth > origHeight ? 'landscape' : 'portrait',
             unit: 'px',
-            format: [tempCanvas.width, tempCanvas.height]
+            format: [origWidth, origHeight]
         });
-        pdf.addImage(imgData, 'PNG', 0, 0, tempCanvas.width, tempCanvas.height);
+        
+        // Pintamos la imagen 4x en el lienzo 1x del PDF
+        pdf.addImage(imgData, 'JPEG', 0, 0, origWidth, origHeight);
+        
         const safeName = (window._currentFileName || 'plano').replace(/\.dxf$/i, '');
-        pdf.save(`${safeName}_anotado.pdf`);
+        pdf.save(`${safeName}_alta_calidad.pdf`);
+
+        // Restaurar todo a la normalidad
+        dxfCanvas.width = origWidth;
+        dxfCanvas.height = origHeight;
+        
+        if (window.viewState) {
+            window.viewState.scale = origScale;
+            window.viewState.x = origX;
+            window.viewState.y = origY;
+        }
+        
+        window.syncFabricSymbols = oldSync;
+        if (window.forceDrawDxf) window.forceDrawDxf();
+        
+        fCanvas.setWidth(origFWidth);
+        fCanvas.setHeight(origFHeight);
+        fCanvas.setZoom(origFZoom);
+        fCanvas.renderAll();
     });
 
     // ─── Shape drawing (Rect) ───

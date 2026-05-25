@@ -23,6 +23,7 @@ export const viewState = {
     lastX: 0,
     lastY: 0
 };
+window.viewState = viewState;
 
 // ─── Measurement State ───
 let measurements = [];
@@ -599,7 +600,7 @@ function getEntityPoints(ent) {
 
 // ─── Render Pipeline Optimization ───
 let renderPending = false;
-function requestDrawDxf() {
+export function requestDrawDxf() {
     if (!renderPending) {
         renderPending = true;
         requestAnimationFrame(() => {
@@ -608,6 +609,11 @@ function requestDrawDxf() {
         });
     }
 }
+
+export function forceDrawDxf() {
+    drawDxf();
+}
+window.forceDrawDxf = forceDrawDxf;
 
 // ─── Drawing ───
 function drawDxf() {
