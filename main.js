@@ -470,19 +470,16 @@ function exportToDxf() {
     
     // 5. ENCONTRAR EL FINAL REAL DE LA SECCIÓN ENTITIES
     const nl = helpers.nl; // Usamos el salto de línea detectado (\r\n o \n)
-    const objectsHeader = rawDxfContent.match(/2\s*\r?\nOBJECTS/i);
+    // Usamos el formato estricto de inicio de sección para no confundirlo con texto o nombres de capas
+    const objectsHeader = rawDxfContent.match(/  0\r?\nSECTION\r?\n  2\r?\nOBJECTS/i);
     
     let injectionIndex = -1;
 
     if (objectsHeader) {
-        // Obtenemos todo el texto antes de "2\nOBJECTS"
+        // Obtenemos todo el texto antes del inicio de la sección OBJECTS
         const antesDeObjects = rawDxfContent.substring(0, objectsHeader.index);
         
         // Buscamos de atrás hacia adelante la etiqueta exacta de cierre "0\nENDSEC"
-        // que da fin a la sección ENTITIES
-        // DXF structure commonly pads with spaces, so we allow them
-        // But since we are looking backwards, exact string match is safer.
-        // Wait, what if there's leading spaces? "  0"
         const patronEndsec = `  0${nl}ENDSEC`;
         let ultimoEndsecIndex = antesDeObjects.lastIndexOf(patronEndsec);
         if (ultimoEndsecIndex === -1) {
@@ -495,9 +492,9 @@ function exportToDxf() {
         }
     }
 
-    // Plan de respaldo: si falla la búsqueda por OBJECTS, usamos una aproximación segura
+    // Plan de respaldo: si falla la búsqueda por OBJECTS, usamos la sección ENTITIES
     if (injectionIndex === -1) {
-        const entitiesHeader = rawDxfContent.match(/2\s*\r?\nENTITIES/i);
+        const entitiesHeader = rawDxfContent.match(/  0\r?\nSECTION\r?\n  2\r?\nENTITIES/i);
         if (!entitiesHeader) {
             alert('No se pudo encontrar la sección ENTITIES en el archivo original.');
             return;
