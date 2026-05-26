@@ -1051,34 +1051,112 @@ function drawSnapIndicator() {
     if ((currentTool === 'measure' || currentTool.startsWith('sym-')) && currentSnapPoint) {
         ctx.save();
         const sp = dxfToScreen(currentSnapPoint.x, currentSnapPoint.y);
-        ctx.strokeStyle = '#22c55e'; // Green for snap
-        ctx.lineWidth = 2;
-        const sSize = 5;
-        ctx.strokeRect(sp.x - sSize, sp.y - sSize, sSize * 2, sSize * 2);
+
+        if (currentSnapPoint.isSymbolPort) {
+            // ── Magenta diamond = snapping to another symbol's port ──
+            ctx.strokeStyle = '#e879f9';
+            ctx.fillStyle   = 'rgba(232,121,249,0.15)';
+            ctx.lineWidth = 2;
+            const d = 7;
+            ctx.beginPath();
+            ctx.moveTo(sp.x,     sp.y - d);
+            ctx.lineTo(sp.x + d, sp.y);
+            ctx.lineTo(sp.x,     sp.y + d);
+            ctx.lineTo(sp.x - d, sp.y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            // Pulsating ring
+            ctx.strokeStyle = 'rgba(232,121,249,0.35)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(sp.x, sp.y, d + 5, 0, Math.PI * 2);
+            ctx.stroke();
+        } else {
+            // ── Green square = snapping to DXF entity vertex ──
+            ctx.strokeStyle = '#22c55e';
+            ctx.lineWidth = 2;
+            const sSize = 5;
+            ctx.strokeRect(sp.x - sSize, sp.y - sSize, sSize * 2, sSize * 2);
+        }
         ctx.restore();
     }
 }
 
+/**
+ * Returns the open connection ports of a piping symbol in DXF coordinates.
+ * Each port is where another fitting can attach.
+ * Port offsets are in screen pixels (SYM_SIZE-based) and converted to DXF units.
+ */
+function getSymbolConnectionPortsDxf(sym) {
+    if (sym.dxfX === undefined || sym.dxfY === undefined) return [];
+
+    const scaleFactor = Math.min(1.0, viewState.scale / 15.0) || 1.0;
+    const s = SYM_SIZE * scaleFactor; // screen-pixel half-size of the symbol
+    const a = sym.angle || 0;         // rotation in radians
+    const cos = Math.cos(a);
+    const sin = Math.sin(a);
+
+    // Convert a screen-space local offset (lx, ly) → DXF point
+    // (canvas Y is downward; DXF Y is upward, hence the negative sign)
+    function portAt(lx, ly) {
+        const rx = lx * cos - ly * sin; // rotated screen offset X
+        const ry = lx * sin + ly * cos; // rotated screen offset Y
+        return {
+            x: sym.dxfX + rx / viewState.scale,
+            y: sym.dxfY - ry / viewState.scale,
+            isSymbolPort: true
+        };
+    }
+
+    switch (sym.type) {
+        case 'tee':      return [portAt(-s, 0), portAt(s, 0), portAt(0, s)];
+        case 'codo':     return [portAt(-s, 0), portAt(0, s)];
+        case 'reductor': return [portAt(-s, 0), portAt(s, 0)];
+        case 'brida':    return [portAt(0, -s), portAt(0, s)];
+        case 'tapon':    return [portAt(-s, 0)];
+        default:         return [];
+    }
+}
+
 function findClosestSnapPoint(mouseDxfPt, maxScreenDist) {
-    if (!dxfData || !dxfData.entities) return null;
-    
     let closestPt = null;
     let minDistSq = Infinity;
     const maxDxfDistSq = Math.pow(maxScreenDist / viewState.scale, 2);
-    
-    for (const ent of dxfData.entities) {
-        const points = getEntityPoints(ent);
-        for (const p of points) {
-            if (p.x === undefined || p.y === undefined) continue;
-            const dx = p.x - mouseDxfPt.x;
-            const dy = p.y - mouseDxfPt.y;
-            const distSq = dx * dx + dy * dy;
-            if (distSq < maxDxfDistSq && distSq < minDistSq) {
-                minDistSq = distSq;
-                closestPt = { x: p.x, y: p.y };
+
+    // ── 1. DXF entity vertices ────────────────────────────────────────────────
+    if (dxfData && dxfData.entities) {
+        for (const ent of dxfData.entities) {
+            const points = getEntityPoints(ent);
+            for (const p of points) {
+                if (p.x === undefined || p.y === undefined) continue;
+                const dx = p.x - mouseDxfPt.x;
+                const dy = p.y - mouseDxfPt.y;
+                const distSq = dx * dx + dy * dy;
+                if (distSq < maxDxfDistSq && distSq < minDistSq) {
+                    minDistSq = distSq;
+                    closestPt = { x: p.x, y: p.y };
+                }
             }
         }
     }
+
+    // ── 2. Piping symbol connection ports (snaps with higher priority) ────────
+    // Use a slightly wider search radius for symbol ports so they feel magnetic.
+    const symMaxDxfDistSq = Math.pow((maxScreenDist + 6) / viewState.scale, 2);
+    for (const sym of pipingSymbols) {
+        const ports = getSymbolConnectionPortsDxf(sym);
+        for (const p of ports) {
+            const dx = p.x - mouseDxfPt.x;
+            const dy = p.y - mouseDxfPt.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < symMaxDxfDistSq && distSq < minDistSq) {
+                minDistSq = distSq;
+                closestPt = p; // already has isSymbolPort: true
+            }
+        }
+    }
+
     return closestPt;
 }
 
