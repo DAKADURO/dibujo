@@ -80,50 +80,7 @@ export function setupAnnotations() {
         link.click();
     });
 
-    document.getElementById('btn-export-pdf').addEventListener('click', async () => {
-        if (!window.generateModifiedDxfBlob) {
-            alert('Error: generador DXF no está disponible.');
-            return;
-        }
 
-        const btn = document.getElementById('btn-export-pdf');
-        const oldText = btn.innerHTML;
-        btn.innerHTML = "Exportando...";
-        btn.style.pointerEvents = "none";
-        
-        try {
-            const blob = window.generateModifiedDxfBlob();
-            if (!blob) throw new Error("No hay archivo DXF cargado o no se pudo generar.");
-            
-            const formData = new FormData();
-            formData.append("file", blob, "plano_con_anotaciones.dxf");
-
-            const response = await fetch("http://127.0.0.1:8000/export/pdf", {
-                method: "POST",
-                body: formData
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error("Error del servidor: " + errorText);
-            }
-
-            const pdfBlob = await response.blob();
-            const url = URL.createObjectURL(pdfBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            const safeName = (window._currentFileName || 'plano').replace(/\.dxf$/i, '');
-            a.download = `${safeName}_Vector_Alta_Calidad.pdf`;
-            a.click();
-            URL.revokeObjectURL(url);
-        } catch (e) {
-            alert("Error al exportar PDF Vectorial: " + e.message);
-            console.error(e);
-        } finally {
-            btn.innerHTML = oldText;
-            btn.style.pointerEvents = "auto";
-        }
-    });
 
     // ─── Shape drawing (Rect) ───
     let isDrawingShape = false;

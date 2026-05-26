@@ -195,11 +195,7 @@ document.getElementById('btn-export-dxf').addEventListener('click', () => {
     exportToDxf();
 });
 
-let dxfHandleCounter = 0xF00000;
-function getNextDxfHandle() {
-    dxfHandleCounter++;
-    return dxfHandleCounter.toString(16).toUpperCase();
-}
+// (dxfHandleCounter is now managed inside buildDxfEntityHelpers per-export)
 
 function hexToAci(hex) {
     if (!hex) return 7;
@@ -223,29 +219,59 @@ function hexToAci(hex) {
     return 7;
 }
 
+// ─── DXF Export Engine (rewritten) ───────────────────────────────────────────
+
+/**
+ * Sample a quadratic Bezier (M, Q) into N line segments, returning intermediate DXF-space points.
+ * p0=start, p1=control, p2=end — all in canvas pixels.
+ */
+function sampleQuadBezier(p0, p1, p2, steps = 12) {
+    const pts = [];
+    for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        const mt = 1 - t;
+        const x = mt * mt * p0.x + 2 * mt * t * p1.x + t * t * p2.x;
+        const y = mt * mt * p0.y + 2 * mt * t * p1.y + t * t * p2.y;
+        pts.push({ x, y });
+    }
+    return pts;
+}
+
+/**
+ * Sample a cubic Bezier (C) into N line segments.
+ * p0=start, p1=control1, p2=control2, p3=end — all in canvas pixels.
+ */
+function sampleCubicBezier(p0, p1, p2, p3, steps = 12) {
+    const pts = [];
+    for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        const mt = 1 - t;
+        const x = mt*mt*mt*p0.x + 3*mt*mt*t*p1.x + 3*mt*t*t*p2.x + t*t*t*p3.x;
+        const y = mt*mt*mt*p0.y + 3*mt*mt*t*p1.y + 3*mt*t*t*p2.y + t*t*t*p3.y;
+        pts.push({ x, y });
+    }
+    return pts;
+}
+
 // Detect DXF format version and line endings from raw content, then build entities accordingly
 function buildDxfEntityHelpers() {
     const nl = rawDxfContent.includes('\r\n') ? '\r\n' : '\n';
 
     const verMatch = rawDxfContent.match(/\$ACADVER[\s\S]{1,50}?(AC10[0-9]{2})/);
-    const ver = verMatch ? verMatch[1] : 'AC1015'; 
+    const ver = verMatch ? verMatch[1] : 'AC1015';
     const modern = ver >= 'AC1015';
 
-    // Buscamos el Handle único del bloque *Model_Space para asignarlo como propietario legítimo.
-    // IMPORTANTE: En la sintaxis DXF, el grupo "5" (Handle) viene ANTES del grupo "2" (Nombre).
-    // Si buscamos hacia adelante después del "2", capturamos erróneamente el handle del *Paper_Space,
-    // lo que causa una contradicción fatal de espacios y el "pantallazo negro" en AutoCAD.
+    // Find the *Model_Space BLOCK_RECORD handle (group 5 appears BEFORE group 2 in DXF).
     let modelSpaceHandle = null;
-    const modelSpaceMatch = rawDxfContent.match(/  0\r?\nBLOCK_RECORD\r?\n  5\r?\n([0-9A-Fa-f]+)[\s\S]{1,200}?  2\r?\n\*Model_Space/i);
+    const modelSpaceMatch = rawDxfContent.match(/  0\r?\nBLOCK_RECORD\r?\n  5\r?\n([0-9A-Fa-f]+)[\s\S]{1,400}?  2\r?\n\*Model_Space/i);
     if (modelSpaceMatch) {
         modelSpaceHandle = modelSpaceMatch[1];
     } else {
-        // Expresión de respaldo general que captura el 5 que antecede al 2 *Model_Space
-        const fallbackMatch = rawDxfContent.match(/  5\r?\n([0-9A-Fa-f]+)[\s\S]{1,200}?  2\r?\n\*Model_Space/i);
+        const fallbackMatch = rawDxfContent.match(/  5\r?\n([0-9A-Fa-f]+)[\s\S]{1,400}?  2\r?\n\*Model_Space/i);
         if (fallbackMatch) modelSpaceHandle = fallbackMatch[1];
     }
 
-    // Parse $HANDSEED to use valid contiguous handles and prevent AutoCAD crashes
+    // Parse $HANDSEED so new handles never collide with existing ones.
     const handseedMatch = rawDxfContent.match(/\$HANDSEED[\s\r\n]+5[\s\r\n]+([0-9A-Fa-f]+)/);
     let currentHandleSeed = handseedMatch ? parseInt(handseedMatch[1], 16) : 0xF00000;
 
@@ -263,63 +289,74 @@ function buildDxfEntityHelpers() {
         };
     }
 
-    // GENERADOR DE LÍNEAS BLINDADO
+    /**
+     * Emit a DXF LINE entity with strictly correct group-code formatting.
+     * Group codes 0-9 → 1 space prefix; 10-99 → 1 space prefix; 100-999 → no prefix.
+     * We follow the AutoCAD convention: "  0\n" for type codes and "  5\n" for handle.
+     */
     function dxfLine(x1, y1, x2, y2, colorHex) {
         if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2)) return '';
+        if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) return '';
         const c = hexToAci(colorHex);
         const h = getNextDxfHandle();
-        
-        let str = `  0${nl}LINE${nl}  5${nl}${h}${nl}`;
-        if (modern && modelSpaceHandle) {
-            str += `330${nl}${modelSpaceHandle}${nl}`;
-        }
-        if (modern) {
-            str += `100${nl}AcDbEntity${nl}`;
-        }
-        // Forzamos grupo 67 en 0 (Model Space) y grupo 8 en capa "0" estándar
-        str += ` 67${nl}     0${nl}  8${nl}0${nl} 62${nl}${c.toString().padStart(6, ' ')}${nl}`;
-        if (modern) {
-            str += `100${nl}AcDbLine${nl}`;
-        }
-        str += ` 10${nl}${x1.toFixed(4)}${nl} 20${nl}${y1.toFixed(4)}${nl} 30${nl}0.0${nl}`;
-        str += ` 11${nl}${x2.toFixed(4)}${nl} 21${nl}${y2.toFixed(4)}${nl} 31${nl}0.0${nl}`;
-        
-        return str;
+
+        let s = '';
+        s += `  0${nl}LINE${nl}`;
+        s += `  5${nl}${h}${nl}`;
+        if (modern && modelSpaceHandle) s += `330${nl}${modelSpaceHandle}${nl}`;
+        if (modern) s += `100${nl}AcDbEntity${nl}`;
+        s += `  8${nl}ANOTACIONES${nl}`;        // named layer so CAD user can toggle
+        s += ` 62${nl}     ${c}${nl}`;         // ACI color
+        if (modern) s += `100${nl}AcDbLine${nl}`;
+        s += ` 10${nl}${x1.toFixed(6)}${nl}`;
+        s += ` 20${nl}${y1.toFixed(6)}${nl}`;
+        s += ` 30${nl}0.0${nl}`;
+        s += ` 11${nl}${x2.toFixed(6)}${nl}`;
+        s += ` 21${nl}${y2.toFixed(6)}${nl}`;
+        s += ` 31${nl}0.0${nl}`;
+        return s;
     }
 
-    // GENERADOR DE TEXTO BLINDADO
-    function dxfText(text, x, y, height, colorHex, angle = 0) {
+    /**
+     * Emit a DXF TEXT entity.
+     * angle is in RADIANS (internal) — converted to degrees for DXF group 50.
+     */
+    function dxfText(text, x, y, height, colorHex, angleRad = 0) {
         if (isNaN(x) || isNaN(y) || isNaN(height) || !text) return '';
+        if (!isFinite(x) || !isFinite(y)) return '';
+        // Strip characters that break DXF text (newlines, null, curly braces)
+        const safeTxt = text.replace(/[\r\n\x00{}]/g, ' ').replace(/\\[^;]*;/g, '').trim();
+        if (!safeTxt) return '';
+
         const c = hexToAci(colorHex);
         const h = getNextDxfHandle();
-        const deg = (angle * 180 / Math.PI).toFixed(4);
-        
-        let str = `  0${nl}TEXT${nl}  5${nl}${h}${nl}`;
-        if (modern && modelSpaceHandle) {
-            str += `330${nl}${modelSpaceHandle}${nl}`;
-        }
-        if (modern) {
-            str += `100${nl}AcDbEntity${nl}`;
-        }
-        str += ` 67${nl}     0${nl}  8${nl}0${nl} 62${nl}${c.toString().padStart(6, ' ')}${nl}`;
-        if (modern) {
-            str += `100${nl}AcDbText${nl}`;
-        }
-        str += ` 10${nl}${x.toFixed(4)}${nl} 20${nl}${y.toFixed(4)}${nl} 30${nl}0.0${nl}`;
-        str += ` 40${nl}${height.toFixed(4)}${nl}  1${nl}${text}${nl}`;
-        if (parseFloat(deg) !== 0) {
-            str += ` 50${nl}${deg}${nl}`;
-        }
-        
-        return str;
+        const deg = (angleRad * 180 / Math.PI).toFixed(6);
+
+        let s = '';
+        s += `  0${nl}TEXT${nl}`;
+        s += `  5${nl}${h}${nl}`;
+        if (modern && modelSpaceHandle) s += `330${nl}${modelSpaceHandle}${nl}`;
+        if (modern) s += `100${nl}AcDbEntity${nl}`;
+        s += `  8${nl}ANOTACIONES${nl}`;
+        s += ` 62${nl}     ${c}${nl}`;
+        if (modern) s += `100${nl}AcDbText${nl}`;
+        s += ` 10${nl}${x.toFixed(6)}${nl}`;
+        s += ` 20${nl}${y.toFixed(6)}${nl}`;
+        s += ` 30${nl}0.0${nl}`;
+        s += ` 40${nl}${height.toFixed(6)}${nl}`;
+        s += `  1${nl}${safeTxt}${nl}`;
+        const degF = parseFloat(deg);
+        if (Math.abs(degF) > 0.001) s += ` 50${nl}${deg}${nl}`;
+        if (modern) s += `100${nl}AcDbText${nl}`; // second AcDbText subclass marker required by AC1015+
+        return s;
     }
 
     return { dxfLine, dxfText, nl, getUpdatedHandseedString };
 }
 
-function rotatePt(cx, cy, px, py, angle) {
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
+function rotatePt(cx, cy, px, py, angleRad) {
+    const cos = Math.cos(angleRad);
+    const sin = Math.sin(angleRad);
     return {
         x: cos * (px - cx) - sin * (py - cy) + cx,
         y: sin * (px - cx) + cos * (py - cy) + cy
@@ -327,222 +364,267 @@ function rotatePt(cx, cy, px, py, angle) {
 }
 
 export function generateModifiedDxfBlob() {
-    // Get version/NL-aware entity builder
     const helpers = buildDxfEntityHelpers();
     const { dxfLine, dxfText } = helpers;
     let customEntities = '';
-    
-    // 1. Freehand & Rectangles & Text (Fabric.js objects)
+
+    // ── 1. Fabric.js annotations (Freehand paths, Rectangles, Text) ──────────
     const fabricObjs = getFabricObjects();
     for (const obj of fabricObjs) {
         const color = obj.stroke || obj.fill || '#06b6d4';
-        
+
         if (obj.type === 'path') {
-            // Freehand
+            // FIX: Fabric path coords are in canvas-local space after applying the
+            // object's transform matrix.  We must NOT call screenToDxf (which subtracts
+            // the HTML element's bounding rect).  Instead we use canvasToDxf directly.
             if (obj.path && obj.path.length > 0) {
-                // path elements are like ['M', x, y], ['Q', x1, y1, x2, y2], ['L', x, y]
-                // For simplicity, we just use the control points or endpoints.
-                let lastPt = null;
-                for (const p of obj.path) {
-                    let screenX = 0, screenY = 0;
-                    if (p[0] === 'M' || p[0] === 'L') { screenX = p[1]; screenY = p[2]; }
-                    else if (p[0] === 'Q') { screenX = p[3]; screenY = p[4]; }
-                    else continue;
-                    
-                    // The path coordinates are relative to the object's left/top if it's transformed, but usually absolute in fabric path if not scaled?
-                    // Actually, fabric path points are relative to the path center or origin.
-                    // To get absolute screen coords:
-                    const absolutePt = fabric.util.transformPoint({x: screenX, y: screenY}, obj.calcTransformMatrix());
-                    const dxfPt = screenToDxf(absolutePt.x, absolutePt.y);
-                    
-                    if (lastPt) {
-                        customEntities += dxfLine(lastPt.x, lastPt.y, dxfPt.x, dxfPt.y, color);
+                const mtx = obj.calcTransformMatrix();
+                let lastCanvasPt = null;   // last point in canvas pixel space
+                let lastDxfPt    = null;
+
+                for (let pi = 0; pi < obj.path.length; pi++) {
+                    const p = obj.path[pi];
+                    const cmd = p[0];
+
+                    if (cmd === 'M' || cmd === 'L') {
+                        const abs = fabric.util.transformPoint({ x: p[1], y: p[2] }, mtx);
+                        const dpt = canvasToDxf(abs.x, abs.y);
+                        if (cmd === 'L' && lastDxfPt) {
+                            customEntities += dxfLine(lastDxfPt.x, lastDxfPt.y, dpt.x, dpt.y, color);
+                        }
+                        lastCanvasPt = { x: p[1], y: p[2] };
+                        lastDxfPt = dpt;
+
+                    } else if (cmd === 'Q') {
+                        // Quadratic Bezier: p = ['Q', cpx, cpy, x, y]
+                        // FIX: tessellate instead of using only endpoint
+                        const p0abs = fabric.util.transformPoint(
+                            lastCanvasPt || { x: p[3], y: p[4] }, mtx);
+                        const p1abs = fabric.util.transformPoint({ x: p[1], y: p[2] }, mtx); // control
+                        const p2abs = fabric.util.transformPoint({ x: p[3], y: p[4] }, mtx); // end
+                        const samples = sampleQuadBezier(p0abs, p1abs, p2abs, 8);
+                        let prev = lastDxfPt || canvasToDxf(p0abs.x, p0abs.y);
+                        for (const sp of samples) {
+                            const dpt = canvasToDxf(sp.x, sp.y);
+                            customEntities += dxfLine(prev.x, prev.y, dpt.x, dpt.y, color);
+                            prev = dpt;
+                        }
+                        lastCanvasPt = { x: p[3], y: p[4] };
+                        lastDxfPt = prev;
+
+                    } else if (cmd === 'C') {
+                        // Cubic Bezier: p = ['C', cp1x, cp1y, cp2x, cp2y, x, y]
+                        // FIX: was completely ignored before
+                        const p0abs = fabric.util.transformPoint(
+                            lastCanvasPt || { x: p[5], y: p[6] }, mtx);
+                        const p1abs = fabric.util.transformPoint({ x: p[1], y: p[2] }, mtx);
+                        const p2abs = fabric.util.transformPoint({ x: p[3], y: p[4] }, mtx);
+                        const p3abs = fabric.util.transformPoint({ x: p[5], y: p[6] }, mtx);
+                        const samples = sampleCubicBezier(p0abs, p1abs, p2abs, p3abs, 10);
+                        let prev = lastDxfPt || canvasToDxf(p0abs.x, p0abs.y);
+                        for (const sp of samples) {
+                            const dpt = canvasToDxf(sp.x, sp.y);
+                            customEntities += dxfLine(prev.x, prev.y, dpt.x, dpt.y, color);
+                            prev = dpt;
+                        }
+                        lastCanvasPt = { x: p[5], y: p[6] };
+                        lastDxfPt = prev;
                     }
-                    lastPt = dxfPt;
                 }
             }
+
         } else if (obj.type === 'rect') {
-            // We get the 4 corners in screen coords
-            const aCoords = obj.aCoords; // {tl, tr, br, bl}
-            const tl = screenToDxf(aCoords.tl.x, aCoords.tl.y);
-            const tr = screenToDxf(aCoords.tr.x, aCoords.tr.y);
-            const br = screenToDxf(aCoords.br.x, aCoords.br.y);
-            const bl = screenToDxf(aCoords.bl.x, aCoords.bl.y);
+            // FIX: aCoords gives canvas-pixel positions, not screen positions.
+            // Use canvasToDxf directly (not screenToDxf which subtracts elem offset).
+            const ac = obj.aCoords;
+            const tl = canvasToDxf(ac.tl.x, ac.tl.y);
+            const tr = canvasToDxf(ac.tr.x, ac.tr.y);
+            const br = canvasToDxf(ac.br.x, ac.br.y);
+            const bl = canvasToDxf(ac.bl.x, ac.bl.y);
             customEntities += dxfLine(tl.x, tl.y, tr.x, tr.y, color);
             customEntities += dxfLine(tr.x, tr.y, br.x, br.y, color);
             customEntities += dxfLine(br.x, br.y, bl.x, bl.y, color);
             customEntities += dxfLine(bl.x, bl.y, tl.x, tl.y, color);
+
         } else if (obj.type === 'i-text' || obj.type === 'text') {
-            const center = obj.getCenterPoint();
-            const pt = screenToDxf(center.x, center.y);
-            const dxfHeight = (obj.fontSize * obj.scaleY) / viewState.scale;
+            // FIX: getCenterPoint() returns canvas-local coords — use canvasToDxf.
+            const center  = obj.getCenterPoint();
+            const pt      = canvasToDxf(center.x, center.y);
+            const dxfH    = Math.max(0.5, (obj.fontSize * obj.scaleY) / viewState.scale);
+            // FIX: Fabric angle is in DEGREES; convert to radians for rotatePt and dxfText.
             const radAngle = -(obj.angle || 0) * Math.PI / 180;
-            const textWidth = obj.text.length * dxfHeight * 0.6;
-            
-            // Shift left by textWidth/2 in DXF coordinates
-            const pStart = rotatePt(pt.x, pt.y, pt.x - textWidth/2, pt.y - dxfHeight/2, radAngle);
-            customEntities += dxfText(obj.text, pStart.x, pStart.y, dxfHeight, color, radAngle);
+            const textW    = (obj.text ? obj.text.length : 4) * dxfH * 0.6;
+            const pStart   = rotatePt(pt.x, pt.y, pt.x - textW / 2, pt.y - dxfH / 2, radAngle);
+            customEntities += dxfText(obj.text, pStart.x, pStart.y, dxfH, color, radAngle);
         }
     }
-    
-    // 2. Measurements
+
+    // ── 2. Measurements ──────────────────────────────────────────────────────
     for (const m of measurements) {
         customEntities += dxfLine(m.p1.x, m.p1.y, m.p2.x, m.p2.y, m.color);
         const midX = (m.p1.x + m.p2.x) / 2;
         const midY = (m.p1.y + m.p2.y) / 2;
-        
-        let screenScaleFactor = Math.min(1.0, viewState.scale / 15.0);
-        if (isNaN(screenScaleFactor) || screenScaleFactor <= 0.01) screenScaleFactor = 1.0;
-        
-        const dFontSize = Math.max(8, 14 * screenScaleFactor);
-        const dxfFontSize = dFontSize / viewState.scale;
-        
-        const textStr = m.distance.toFixed(2);
-        const textWidth = textStr.length * dxfFontSize * 0.6;
-        customEntities += dxfText(textStr, midX - textWidth / 2, midY + (dxfFontSize / 2), dxfFontSize, m.color);
+
+        // Derive a text height proportional to the DXF drawing's extents (not screen pixels).
+        // We aim for roughly 1% of the measurement distance so labels are always readable.
+        const dxfFontSize = Math.max(m.distance * 0.04, 1);
+        const textStr  = m.distance.toFixed(2);
+        const textW    = textStr.length * dxfFontSize * 0.6;
+        customEntities += dxfText(textStr, midX - textW / 2, midY + dxfFontSize * 0.6,
+                                  dxfFontSize, m.color, 0);
     }
-    
-    // 3. Couplings
-    let screenScaleFactor = Math.min(1.0, viewState.scale / 15.0);
-    if (isNaN(screenScaleFactor) || screenScaleFactor <= 0.01) screenScaleFactor = 1.0;
-    
-    const cSizeX = (10 * screenScaleFactor) / viewState.scale;
-    const cSizeY = (4 * screenScaleFactor) / viewState.scale;
-    
+
+    // ── 3. Couplings ─────────────────────────────────────────────────────────
+    // Coupling size expressed in DXF drawing units.
+    // We estimate a "drawing unit size" from the bounding box so couplings look
+    // proportional regardless of whether the drawing is in mm or meters.
+    let drawingScale = 1;
+    if (dxfData && dxfData.entities) {
+        let minX = Infinity, maxX = -Infinity;
+        for (const ent of dxfData.entities) {
+            const pts = getEntityPoints(ent);
+            for (const p of pts) {
+                if (p.x < minX) minX = p.x;
+                if (p.x > maxX) maxX = p.x;
+            }
+        }
+        if (isFinite(minX) && isFinite(maxX) && maxX > minX) {
+            drawingScale = (maxX - minX) / 1000; // 1000 arbitrary canvas-units reference
+        }
+    }
+    const cHalf  = Math.max(drawingScale * 5,  1);  // half-width of coupling rectangle
+    const cHalfH = Math.max(drawingScale * 2,  0.4); // half-height
+
     for (const c of virtualCouplings) {
         const cx = c.x, cy = c.y;
         const color = c.color || document.getElementById('cople-color-picker')?.value || '#ef4444';
-        const p1 = rotatePt(cx, cy, cx - cSizeX/2, cy - cSizeY/2, c.angle || 0);
-        const p2 = rotatePt(cx, cy, cx + cSizeX/2, cy - cSizeY/2, c.angle || 0);
-        const p3 = rotatePt(cx, cy, cx + cSizeX/2, cy + cSizeY/2, c.angle || 0);
-        const p4 = rotatePt(cx, cy, cx - cSizeX/2, cy + cSizeY/2, c.angle || 0);
-        
+        const a = c.angle || 0; // already in radians (set by Math.atan2 in handleCopleClick)
+        const p1 = rotatePt(cx, cy, cx - cHalf, cy - cHalfH, a);
+        const p2 = rotatePt(cx, cy, cx + cHalf, cy - cHalfH, a);
+        const p3 = rotatePt(cx, cy, cx + cHalf, cy + cHalfH, a);
+        const p4 = rotatePt(cx, cy, cx - cHalf, cy + cHalfH, a);
         customEntities += dxfLine(p1.x, p1.y, p2.x, p2.y, color);
         customEntities += dxfLine(p2.x, p2.y, p3.x, p3.y, color);
         customEntities += dxfLine(p3.x, p3.y, p4.x, p4.y, color);
         customEntities += dxfLine(p4.x, p4.y, p1.x, p1.y, color);
     }
-    
-    // 4. Piping Symbols
-    const sSize = (14 * screenScaleFactor) / viewState.scale; 
-    
+
+    // ── 4. Piping Symbols ────────────────────────────────────────────────────
+    // Symbol size in DXF drawing units (proportional, not screen pixels).
+    const sSize = Math.max(drawingScale * 7, 1);
+
     for (const sym of pipingSymbols) {
         const cx = sym.dxfX, cy = sym.dxfY;
-        const color = sym.color || '#06b6d4';
-        const a = sym.angle || 0;
-        const dxfAngle = -a; 
-        
-        const drawLine = (x1, y1, x2, y2) => {
-            const p1 = rotatePt(cx, cy, cx + x1, cy + y1, dxfAngle);
-            const p2 = rotatePt(cx, cy, cx + x2, cy + y2, dxfAngle);
-            customEntities += dxfLine(p1.x, p1.y, p2.x, p2.y, color);
+        const color  = sym.color || '#06b6d4';
+        // FIX: sym.angle is stored in RADIANS (see keydown 'R' handler: += Math.PI/4).
+        // dxfAngle negates because DXF Y-axis is upward (opposite to canvas).
+        const a = sym.angle || 0;   // radians
+        const dxfAngle = -a;        // flip for DXF coordinate system
+
+        const drawSeg = (x1, y1, x2, y2) => {
+            const pa = rotatePt(cx, cy, cx + x1, cy + y1, dxfAngle);
+            const pb = rotatePt(cx, cy, cx + x2, cy + y2, dxfAngle);
+            customEntities += dxfLine(pa.x, pa.y, pb.x, pb.y, color);
         };
-        
+
         if (sym.type === 'tee') {
-            drawLine(-sSize, 0, sSize, 0);
-            drawLine(0, 0, 0, -sSize);
+            drawSeg(-sSize, 0,  sSize, 0);
+            drawSeg(0, 0,  0, -sSize);
         } else if (sym.type === 'codo') {
-            drawLine(-sSize, 0, 0, 0);
-            drawLine(0, 0, 0, -sSize);
+            drawSeg(-sSize, 0,  0, 0);
+            drawSeg(0, 0,  0, -sSize);
         } else if (sym.type === 'reductor') {
-            drawLine(-sSize, -sSize*0.6, sSize, -sSize*0.35);
-            drawLine(sSize, -sSize*0.35, sSize, sSize*0.35);
-            drawLine(sSize, sSize*0.35, -sSize, sSize*0.6);
-            drawLine(-sSize, sSize*0.6, -sSize, -sSize*0.6);
+            drawSeg(-sSize, -sSize * 0.6,  sSize, -sSize * 0.35);
+            drawSeg( sSize, -sSize * 0.35, sSize,  sSize * 0.35);
+            drawSeg( sSize,  sSize * 0.35, -sSize, sSize * 0.6);
+            drawSeg(-sSize,  sSize * 0.6, -sSize, -sSize * 0.6);
         } else if (sym.type === 'brida') {
-            drawLine(-sSize*0.25, -sSize, -sSize*0.25, sSize);
-            drawLine(sSize*0.25, -sSize, sSize*0.25, sSize);
+            drawSeg(-sSize * 0.25, -sSize, -sSize * 0.25, sSize);
+            drawSeg( sSize * 0.25, -sSize,  sSize * 0.25, sSize);
         } else if (sym.type === 'tapon') {
-            drawLine(-sSize, 0, 0, 0);
-            drawLine(0, -sSize*0.7, 0, sSize*0.7);
+            drawSeg(-sSize, 0,  0, 0);
+            drawSeg(0, -sSize * 0.7, 0, sSize * 0.7);
         }
-        
-        let label = sym.type === 'tapon' ? 'Tapon' : sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
+
+        // Label
+        let label = sym.type === 'tapon'
+            ? 'Tapon'
+            : sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
         if (sym.d1 && sym.d2) label += ` ${sym.d1}x${sym.d2}`;
         else if (sym.d1) label += ` ${sym.d1}`;
         else if (sym.d2) label += ` ${sym.d2}`;
-        
-        const txtHeight = (10 * screenScaleFactor) / viewState.scale;
-        const txtWidth = label.length * txtHeight * 0.6;
-        const pL = rotatePt(cx, cy, cx - txtWidth/2, cy + sSize + (4 / viewState.scale), dxfAngle);
-        customEntities += dxfText(label, pL.x, pL.y, txtHeight, color, dxfAngle);
+
+        const txtH  = sSize * 0.7;
+        const txtW  = label.length * txtH * 0.6;
+        const pL    = rotatePt(cx, cy, cx - txtW / 2, cy + sSize * 1.4, dxfAngle);
+        customEntities += dxfText(label, pL.x, pL.y, txtH, color, dxfAngle);
     }
-    
-    // 5. ENCONTRAR EL FINAL REAL DE LA SECCIÓN ENTITIES
-    const nl = helpers.nl; // Usamos el salto de línea detectado (\r\n o \n)
-    // Usamos el formato estricto de inicio de sección para no confundirlo con texto o nombres de capas
+
+    // ── 5. Inject entities before ENDSEC of the ENTITIES section ─────────────
+    const nl = helpers.nl;
     const objectsHeader = rawDxfContent.match(/  0\r?\nSECTION\r?\n  2\r?\nOBJECTS/i);
-    
     let injectionIndex = -1;
 
     if (objectsHeader) {
-        // Obtenemos todo el texto antes del inicio de la sección OBJECTS
         const antesDeObjects = rawDxfContent.substring(0, objectsHeader.index);
-        
-        // Buscamos de atrás hacia adelante la etiqueta exacta de cierre "0\nENDSEC"
-        const patronEndsec = `  0${nl}ENDSEC`;
-        let ultimoEndsecIndex = antesDeObjects.lastIndexOf(patronEndsec);
-        if (ultimoEndsecIndex === -1) {
-             ultimoEndsecIndex = antesDeObjects.lastIndexOf(`0${nl}ENDSEC`);
-        }
-        
-        if (ultimoEndsecIndex !== -1) {
-            // Inyectamos exactamente ANTES del '0' de ese ENDSEC para quedarnos dentro de ENTITIES
-            injectionIndex = ultimoEndsecIndex;
-        }
+        const pat1 = `  0${nl}ENDSEC`;
+        let idx = antesDeObjects.lastIndexOf(pat1);
+        if (idx === -1) idx = antesDeObjects.lastIndexOf(`0${nl}ENDSEC`);
+        if (idx !== -1) injectionIndex = idx;
     }
 
-    // Plan de respaldo: si falla la búsqueda por OBJECTS, usamos la sección ENTITIES
     if (injectionIndex === -1) {
-        const entitiesHeader = rawDxfContent.match(/  0\r?\nSECTION\r?\n  2\r?\nENTITIES/i);
-        if (!entitiesHeader) {
+        const entHeader = rawDxfContent.match(/  0\r?\nSECTION\r?\n  2\r?\nENTITIES/i);
+        if (!entHeader) {
             alert('No se pudo encontrar la sección ENTITIES en el archivo original.');
-            return;
+            return null;
         }
-        const searchStartIndex = entitiesHeader.index + entitiesHeader[0].length;
-        const searchString = rawDxfContent.substring(searchStartIndex);
-        
-        // Buscamos el primer "  0\nENDSEC" o "0\nENDSEC" después de ENTITIES
-        let patronEndsec = `  0${nl}ENDSEC`;
-        let endsecMatch = searchString.indexOf(patronEndsec);
-        if (endsecMatch === -1) {
-             patronEndsec = `0${nl}ENDSEC`;
-             endsecMatch = searchString.indexOf(patronEndsec);
-        }
-        
-        if (endsecMatch === -1) {
+        const start = entHeader.index + entHeader[0].length;
+        const sub   = rawDxfContent.substring(start);
+        let pat = `  0${nl}ENDSEC`;
+        let mi  = sub.indexOf(pat);
+        if (mi === -1) { pat = `0${nl}ENDSEC`; mi = sub.indexOf(pat); }
+        if (mi === -1) {
             alert('No se pudo encontrar el fin de la sección ENTITIES.');
-            return;
+            return null;
         }
-        injectionIndex = searchStartIndex + endsecMatch;
+        injectionIndex = start + mi;
     }
 
-    // El remanente ahora iniciará exactamente con "0\nENDSEC\n  2\nOBJECTS..." o similar
     let remainder = rawDxfContent.substring(injectionIndex);
-    
-    // CONTROL DE SEGURIDAD PARANOICO
-    if (!remainder.includes("EOF")) {
-        console.warn("La sección remanente perdió consistencia. Forzando etiquetas de cierre DXF.");
-        remainder += `${helpers.nl}  0${helpers.nl}ENDSEC${helpers.nl}  0${helpers.nl}EOF${helpers.nl}`;
+    if (!remainder.includes('EOF')) {
+        console.warn('Sección remanente sin EOF — agregando cierre de emergencia.');
+        remainder += `${nl}  0${nl}ENDSEC${nl}  0${nl}EOF${nl}`;
     }
-    
-    // Concatenamos las partes manteniendo la estructura perfecta
-    let finalStr = rawDxfContent.substring(0, injectionIndex) 
-                   + customEntities 
-                   + remainder;
-                   
-    // Update HANDSEED so AutoCAD doesn't crash on the new handles
-    const handseedUpdate = helpers.getUpdatedHandseedString();
-    if (handseedUpdate) {
-        finalStr = finalStr.replace(handseedUpdate.oldStr, handseedUpdate.newStr);
+
+    let finalStr = rawDxfContent.substring(0, injectionIndex)
+                 + customEntities
+                 + remainder;
+
+    // Update $HANDSEED
+    const hsUpdate = helpers.getUpdatedHandseedString();
+    if (hsUpdate) {
+        finalStr = finalStr.replace(hsUpdate.oldStr, hsUpdate.newStr);
     }
-    
-    const buffer = new Uint8Array(finalStr.length);
-    for (let i = 0; i < finalStr.length; i++) {
-        buffer[i] = finalStr.charCodeAt(i) & 0xFF;
+
+    // FIX: Use TextEncoder (UTF-8) instead of charCodeAt & 0xFF.
+    // Most modern CAD tools handle UTF-8 DXF (AC1021 / R2007+).  For older
+    // files (AC1009–AC1014) which are strictly latin-1, we fall back to latin1.
+    const verMatch2 = rawDxfContent.match(/\$ACADVER[\s\S]{1,50}?(AC10[0-9]{2})/);
+    const fileVer   = verMatch2 ? verMatch2[1] : 'AC1015';
+    let buffer;
+    if (fileVer >= 'AC1021') {
+        // R2007+ — encode as UTF-8
+        buffer = new TextEncoder().encode(finalStr);
+    } else {
+        // Older format — encode as latin-1 (truncate high bytes)
+        buffer = new Uint8Array(finalStr.length);
+        for (let i = 0; i < finalStr.length; i++) {
+            buffer[i] = finalStr.charCodeAt(i) & 0xFF;
+        }
     }
-    const blob = new Blob([buffer], { type: 'application/dxf' });
-    return blob;
+
+    return new Blob([buffer], { type: 'application/dxf' });
 }
 window.generateModifiedDxfBlob = generateModifiedDxfBlob;
 
