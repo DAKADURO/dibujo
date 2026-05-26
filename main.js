@@ -142,7 +142,7 @@ setToolChangeCallback((tool) => {
     const container = document.getElementById('canvas-container');
     const infoCople = document.getElementById('info-cople');
     
-    if (tool === 'measure') {
+    if (tool === 'measure' || tool === 'line') {
         container.classList.add('measure-mode');
     } else {
         container.classList.remove('measure-mode');
@@ -150,7 +150,7 @@ setToolChangeCallback((tool) => {
     
     const infoSum = document.getElementById('info-sum');
     
-    if (tool === 'cople' || tool === 'delete' || tool === 'sum' || (tool.startsWith('sym-') && tool !== 'sym-move')) {
+    if (tool === 'cople' || tool === 'delete' || tool === 'sum' || (tool.startsWith('sym-') && tool !== 'sym-move') || tool === 'line') {
         container.classList.add('measure-mode'); // Use crosshair
         if (tool === 'cople' && infoCople) infoCople.style.display = 'flex';
         else if (infoCople) infoCople.style.display = 'none';
@@ -1121,7 +1121,7 @@ function drawMeasurements() {
 }
 
 function drawSnapIndicator() {
-    if ((currentTool === 'measure' || currentTool.startsWith('sym-')) && currentSnapPoint) {
+    if ((currentTool === 'measure' || currentTool === 'line' || currentTool.startsWith('sym-')) && currentSnapPoint) {
         ctx.save();
         const sp = dxfToScreen(currentSnapPoint.x, currentSnapPoint.y);
 
@@ -1351,19 +1351,29 @@ function drawCustomLines() {
 function handleLineClick(e) {
     if (!dxfData) return;
     
+    // Si es clic derecho, terminar la línea continua
+    if (e.button === 2) {
+        linePending = null;
+        drawDxf();
+        return;
+    }
+    
     const rawPt = screenToDxf(e.clientX, e.clientY);
     const pt = currentSnapPoint || rawPt;
     
     if (!linePending) {
         linePending = pt;
     } else {
-        customLines.push({ 
-            p1: { ...linePending }, 
-            p2: { ...pt }, 
-            color: currentMeasureColor
-        });
-        linePending = null;
-        saveAnnotations();
+        // Evitar líneas de longitud cero
+        if (pt.x !== linePending.x || pt.y !== linePending.y) {
+            customLines.push({ 
+                p1: { ...linePending }, 
+                p2: { ...pt }, 
+                color: currentMeasureColor
+            });
+            saveAnnotations();
+        }
+        linePending = pt; // Continuar desde el último punto
     }
     drawDxf();
 }
@@ -1580,6 +1590,31 @@ function handleDeleteClick(e) {
                 deletedSomething = true;
                 break;
             }
+        }
+    }
+    
+    if (!deletedSomething) {
+        // 3. Check customLines (manually drawn straight lines/pipes)
+        for (let i = customLines.length - 1; i >= 0; i--) {
+            const l = customLines[i];
+            const p1s = dxfToScreen(l.p1.x, l.p1.y);
+            const p2s = dxfToScreen(l.p2.x, l.p2.y);
+            const dSq = distToSegmentSquaredScreen(clickScreen, p1s, p2s);
+            if (dSq < maxScreenDistSq) {
+                customLines.splice(i, 1);
+                deletedSomething = true;
+                break;
+            }
+        }
+    }
+    
+    if (!deletedSomething) {
+        // 4. Check pipingSymbols
+        const hit = findSymbolAt(clickScreen.x, clickScreen.y);
+        if (hit >= 0) {
+            pipingSymbols.splice(hit, 1);
+            if (selectedSymbolIndex === hit) selectedSymbolIndex = -1;
+            deletedSomething = true;
         }
     }
     
@@ -1902,6 +1937,11 @@ document.getElementById('btn-clear-measures')?.addEventListener('click', () => {
 document.getElementById('measure-color-picker')?.addEventListener('input', (e) => {
     currentMeasureColor = e.target.value;
     
+    // Sync to fabric brush for free drawing mode
+    if (window.updateFabricBrushColor) {
+        window.updateFabricBrushColor(currentMeasureColor);
+    }
+    
     // If in sum mode, apply color to selected measurements
     if (currentTool === 'sum') {
         let changed = false;
@@ -2029,7 +2069,7 @@ document.getElementById('btn-bom')?.addEventListener('click', () => {
         return;
     }
     
-    bomData = generateBOM(dxfData, virtualCouplings, pipingSymbols);
+    bomData = generateBOM(dxfData, virtualCouplings, pipingSymbols, customLines);
     if (!bomData || bomData.summary.length === 0) {
         alert('No se encontraron elementos de tubería en el archivo.');
         return;
@@ -2108,7 +2148,23 @@ function renderBOMTable(data) {
 //  PAN / ZOOM / CURSOR EVENTS
 // ══════════════════════════════════════════════════
 
+canvas.addEventListener('contextmenu', (e) => {
+    if (currentTool === 'line' || currentTool === 'measure') {
+        e.preventDefault();
+    }
+});
+
 canvas.addEventListener('mousedown', (e) => {
+    if (currentTool === 'line' && e.button === 2) {
+        handleLineClick(e);
+        return;
+    }
+    if (currentTool === 'measure' && e.button === 2) {
+        measurePending = null;
+        drawDxf();
+        return;
+    }
+
     if (currentTool === 'measure') {
         handleMeasureClick(e);
         return;
@@ -2285,6 +2341,12 @@ window.addEventListener('mouseup', () => {
 // R = rotate selected symbol 45°, Delete/Backspace = remove selected symbol
 window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    
+    if (e.key === 'Escape') {
+        linePending = null;
+        measurePending = null;
+        requestDrawDxf();
+    }
     
     // Copy Symbol (Ctrl+C)
     if (selectedSymbolIndex >= 0 && (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {

@@ -28,8 +28,9 @@ export function setupAnnotations() {
     document.getElementById('btn-pan').addEventListener('click', (e) => setMode('pan', e.target.closest('.btn')));
     document.getElementById('btn-measure').addEventListener('click', (e) => setMode('measure', e.target.closest('.btn')));
     document.getElementById('btn-cople').addEventListener('click', (e) => setMode('cople', e.target.closest('.btn')));
-    document.getElementById('btn-draw').addEventListener('click', (e) => setMode('draw', e.target.closest('.btn')));
+    document.getElementById('btn-line')?.addEventListener('click', (e) => setMode('line', e.target.closest('.btn')));
     document.getElementById('btn-rect').addEventListener('click', (e) => setMode('rect', e.target.closest('.btn')));
+    document.getElementById('btn-draw')?.addEventListener('click', (e) => setMode('draw', e.target.closest('.btn')));
     document.getElementById('btn-text').addEventListener('click', (e) => setMode('text', e.target.closest('.btn')));
     
     document.getElementById('btn-delete').addEventListener('click', (e) => setMode('delete', e.target.closest('.btn')));
@@ -82,7 +83,11 @@ export function setupAnnotations() {
         link.click();
     });
 
-
+    window.updateFabricBrushColor = function(color) {
+        if (fCanvas && fCanvas.freeDrawingBrush) {
+            fCanvas.freeDrawingBrush.color = color;
+        }
+    };
 
     // ─── Shape drawing (Rect) ───
     let isDrawingShape = false;
@@ -116,6 +121,15 @@ export function setupAnnotations() {
                 fontSize: 24,
                 fontWeight: 'bold'
             });
+            if (window.canvasToDxf) {
+                const pt = window.canvasToDxf(pointer.x, pointer.y);
+                text.dxfX = pt.x;
+                text.dxfY = pt.y;
+                text.isAnnotation = true;
+                text.baseScaleX = 1;
+                text.baseScaleY = 1;
+                if (window.viewStateScale) text.createdDxfScale = window.viewStateScale;
+            }
             fCanvas.add(text);
             fCanvas.setActiveObject(text);
             text.enterEditing();
@@ -146,8 +160,30 @@ export function setupAnnotations() {
                 fCanvas.remove(currentShape);
             } else if (currentShape) {
                 currentShape.setCoords();
+                if (window.canvasToDxf) {
+                    const pt = window.canvasToDxf(currentShape.left, currentShape.top);
+                    currentShape.dxfX = pt.x;
+                    currentShape.dxfY = pt.y;
+                    currentShape.isAnnotation = true;
+                    currentShape.baseScaleX = currentShape.scaleX;
+                    currentShape.baseScaleY = currentShape.scaleY;
+                    if (window.viewStateScale) currentShape.createdDxfScale = window.viewStateScale;
+                }
             }
             currentShape = null;
+        }
+    });
+    
+    fCanvas.on('path:created', (e) => {
+        const path = e.path;
+        if (window.canvasToDxf) {
+            const pt = window.canvasToDxf(path.left, path.top);
+            path.dxfX = pt.x;
+            path.dxfY = pt.y;
+            path.isAnnotation = true;
+            path.baseScaleX = path.scaleX;
+            path.baseScaleY = path.scaleY;
+            if (window.viewStateScale) path.createdDxfScale = window.viewStateScale;
         }
     });
     
@@ -221,7 +257,7 @@ window.syncFabricSymbols = function(currentScale) {
     
     let needsRender = false;
     fCanvas.getObjects().forEach(obj => {
-        if (obj.isPipingSymbol && obj.dxfX !== undefined && window.dxfToScreen) {
+        if ((obj.isPipingSymbol || obj.isAnnotation) && obj.dxfX !== undefined && window.dxfToScreen) {
             const sp = window.dxfToScreen(obj.dxfX, obj.dxfY);
             
             // If scale changes, we want the symbol to scale with the drawing
@@ -324,19 +360,21 @@ export function setMode(mode, btnElement) {
 
     // Fabric state update
     fCanvas.isDrawingMode = (mode === 'draw');
+    if (mode === 'draw') {
+        const picker = document.getElementById('measure-color-picker');
+        fCanvas.freeDrawingBrush.color = picker ? picker.value : '#06b6d4';
+        fCanvas.freeDrawingBrush.width = 3;
+    }
+    
     fCanvas.selection = (mode === 'pan');
 
     const fabricWrapper = document.querySelector('.canvas-container');
     
-    if (mode === 'draw') {
-        fCanvas.freeDrawingBrush.color = '#eab308';
-        fCanvas.freeDrawingBrush.width = 4;
-        if (fabricWrapper) fabricWrapper.style.pointerEvents = 'auto';
-    } else if (mode === 'sym-move') {
+    if (mode === 'sym-move') {
         fCanvas.forEachObject(obj => obj.set('selectable', false));
         if (fabricWrapper) fabricWrapper.style.pointerEvents = 'none';
-    } else if (mode === 'rect' || mode === 'text') {
-        // rect/text need fabric to intercept the click
+    } else if (mode === 'rect' || mode === 'text' || mode === 'draw') {
+        // rect/text/draw need fabric to intercept the click
         fCanvas.forEachObject(obj => obj.set('selectable', false));
         if (fabricWrapper) fabricWrapper.style.pointerEvents = 'auto';
     } else {

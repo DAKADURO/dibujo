@@ -42,7 +42,7 @@ const TEXT_LAYERS = ['TEXTO', 'TEXTO2', 'T2TXT03', 'T4TXT07', 'FORTLUFT'];
  * @param {Array} virtualCouplings — virtual couplings created by the matrix tool
  * @returns {Object} { valves, fittings, instruments, pipeSpecs, pipeLengths }
  */
-export function generateBOM(dxfData, virtualCouplings = [], pipingSymbols = []) {
+export function generateBOM(dxfData, virtualCouplings = [], pipingSymbols = [], customLines = []) {
     if (!dxfData || !dxfData.entities) return null;
 
     const result = {
@@ -218,6 +218,20 @@ export function generateBOM(dxfData, virtualCouplings = [], pipingSymbols = []) 
         layer,
         totalLength: Math.round(totalLength * 100) / 100,
     }));
+
+    // Add custom lines (manually drawn straight lines/pipes)
+    if (customLines && customLines.length > 0) {
+        let totalCustomLength = 0;
+        for (const l of customLines) {
+            totalCustomLength += dist(l.p1, l.p2);
+        }
+        if (totalCustomLength > 0) {
+            result.pipeLengths.push({
+                layer: 'Anotación Manual (Tuberías)',
+                totalLength: Math.round(totalCustomLength * 100) / 100
+            });
+        }
+    }
 
     // ── 5. Build unified summary ──
     const summary = [];
