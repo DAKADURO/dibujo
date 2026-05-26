@@ -27,7 +27,9 @@ window.viewState = viewState;
 
 // ─── Measurement State ───
 let measurements = [];
+let customLines = [];
 let measurePending = null; // first click point (in DXF coords)
+let linePending = null;
 let currentTool = 'pan'; // pan, measure, cople, rect, text, sum, draw, delete, sym-*
 let currentMousePt = { x: 0, y: 0 };
 let currentSnapPoint = null;
@@ -226,8 +228,10 @@ dxfInput.addEventListener('change', (e) => {
             
             // Reset state
             measurements = [];
+            customLines = [];
             virtualCouplings.length = 0;
             measurePending = null;
+            linePending = null;
             bomData = null;
             
             // Try to load saved annotations for this file
@@ -811,6 +815,8 @@ function drawDxf() {
     
     // Draw overlays (in screen coords)
     drawCouplings();
+    drawCustomLines();
+    drawSymbols();
     drawMeasurements();
     drawSymbols();
     drawSnapIndicator();
@@ -1301,6 +1307,64 @@ function handleMeasureClick(e) {
         saveAnnotations();
     }
     
+    drawDxf();
+}
+
+function drawCustomLines() {
+    if (customLines.length === 0 && !linePending) return;
+    
+    ctx.save();
+    const exportScale = window.exportScaleFactor || 1;
+    ctx.lineWidth = 2 * exportScale;
+    
+    for (const l of customLines) {
+        const p1 = dxfToScreen(l.p1.x, l.p1.y);
+        const p2 = dxfToScreen(l.p2.x, l.p2.y);
+        
+        ctx.strokeStyle = l.color;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+    }
+    
+    if (linePending && currentMousePt) {
+        const sp = dxfToScreen(linePending.x, linePending.y);
+        drawCross(sp.x, sp.y, 8, currentMeasureColor);
+        
+        const targetPt = currentSnapPoint || currentMousePt;
+        const tp = dxfToScreen(targetPt.x, targetPt.y);
+        
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(sp.x, sp.y);
+        ctx.lineTo(tp.x, tp.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+    
+    ctx.restore();
+}
+
+function handleLineClick(e) {
+    if (!dxfData) return;
+    
+    const rawPt = screenToDxf(e.clientX, e.clientY);
+    const pt = currentSnapPoint || rawPt;
+    
+    if (!linePending) {
+        linePending = pt;
+    } else {
+        customLines.push({ 
+            p1: { ...linePending }, 
+            p2: { ...pt }, 
+            color: currentMeasureColor
+        });
+        linePending = null;
+        saveAnnotations();
+    }
     drawDxf();
 }
 
@@ -1824,7 +1888,9 @@ function distSquared(v, w) {
 // ─── Clear measurements ───
 document.getElementById('btn-clear-measures')?.addEventListener('click', () => {
     measurements = [];
+    customLines = [];
     measurePending = null;
+    linePending = null;
     virtualCouplings.length = 0; // Clear couplings as well
     saveAnnotations();
     const infoMeasure = document.getElementById('info-measure');
@@ -1905,6 +1971,7 @@ function saveAnnotations() {
         measurements: measurements.map(m => ({
             p1: m.p1, p2: m.p2, distance: m.distance, color: m.color
         })),
+        customLines: customLines,
         couplings: virtualCouplings,
         unit: currentUnit,
         symbols: pipingSymbols.map(s => ({ 
@@ -1931,6 +1998,7 @@ function loadAnnotations() {
         if (saved) {
             const data = JSON.parse(saved);
             if (data.measurements) measurements = data.measurements;
+            if (data.customLines) customLines = data.customLines;
             if (data.couplings) {
                 virtualCouplings.length = 0;
                 virtualCouplings.push(...data.couplings);
@@ -2045,6 +2113,10 @@ canvas.addEventListener('mousedown', (e) => {
         handleMeasureClick(e);
         return;
     }
+    if (currentTool === 'line') {
+        handleLineClick(e);
+        return;
+    }
     if (currentTool === 'cople') {
         handleCopleClick(e);
         return;
@@ -2145,7 +2217,7 @@ canvas.addEventListener('mousemove', (e) => {
         if (cx) cx.textContent = `X: ${pt.x.toFixed(2)}`;
         if (cy) cy.textContent = `Y: ${pt.y.toFixed(2)}`;
         
-        if (currentTool === 'measure' || currentTool.startsWith('sym-') || symDragging) {
+        if (currentTool === 'measure' || currentTool === 'line' || currentTool.startsWith('sym-') || symDragging) {
             currentSnapPoint = findClosestSnapPoint(pt, 15); // 15px snap radius
             if (!viewState.isDragging) requestDrawDxf(); // Redraw for live line/snap
         } else {
