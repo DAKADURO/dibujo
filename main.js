@@ -1344,8 +1344,11 @@ function drawCustomLines() {
     }
     
     if (linePending && currentMousePt) {
+        const linePicker = document.getElementById('line-color-picker');
+        const lineColor = linePicker ? linePicker.value : currentMeasureColor;
+        
         const sp = dxfToScreen(linePending.x, linePending.y);
-        drawCross(sp.x, sp.y, 8, currentMeasureColor);
+        drawCross(sp.x, sp.y, 8, lineColor);
         
         const targetPt = currentSnapPoint || currentMousePt;
         const tp = dxfToScreen(targetPt.x, targetPt.y);
@@ -1381,10 +1384,13 @@ function handleLineClick(e) {
     } else {
         // Evitar líneas de longitud cero
         if (pt.x !== linePending.x || pt.y !== linePending.y) {
+            const linePicker = document.getElementById('line-color-picker');
+            const lineColor = linePicker ? linePicker.value : currentMeasureColor;
+            
             customLines.push({ 
                 p1: { ...linePending }, 
                 p2: { ...pt }, 
-                color: currentMeasureColor
+                color: lineColor
             });
             saveAnnotations();
         }
