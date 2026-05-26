@@ -156,6 +156,14 @@
                         </span>
                         Tee
                     </button>
+                    <button class="btn tool-btn" id="btn-sym-tee-lat" title="Insertar Tee Lateral (Y)">
+                        <span class="btn-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="3" y1="12" x2="21" y2="12"/><line x1="12" y1="12" x2="18" y2="20"/>
+                            </svg>
+                        </span>
+                        Tee Lat.
+                    </button>
                     <button class="btn tool-btn" id="btn-sym-codo" title="Insertar Codo (90°)">
                         <span class="btn-icon">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -180,13 +188,13 @@
                         </span>
                         Brida
                     </button>
-                    <button class="btn tool-btn btn-span2" id="btn-sym-tapon" title="Insertar Tapón (End Cap)">
+                    <button class="btn tool-btn" id="btn-sym-tapon" title="Insertar Tapón (End Cap)">
                         <span class="btn-icon">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
                                 <line x1="3" y1="12" x2="16" y2="12"/><line x1="17" y1="5" x2="17" y2="19"/>
                             </svg>
                         </span>
-                        Tapón (End Cap)
+                        Tapón
                     </button>
                 </div>
 
@@ -363,47 +371,15 @@
 
 <!-- ═══════════════ FLOATING SYMBOL PROPS ═══════════════ -->
 <div id="floating-sym-props">
-    <div class="float-panel-title">Diámetros del símbolo</div>
+    <div class="float-panel-title">Componente (AIRpipe)</div>
     <div class="float-row">
-        <div class="float-field">
-            <span class="float-label">Principal</span>
-            <select id="float-d1" class="float-select">
-                <option value="">—</option>
-                <option value='1/2"'>1/2"</option>
-                <option value='3/4"'>3/4"</option>
-                <option value='1"'>1"</option>
-                <option value='1 1/4"'>1 1/4"</option>
-                <option value='1 1/2"'>1 1/2"</option>
-                <option value='2"'>2"</option>
-                <option value='2 1/2"'>2 1/2"</option>
-                <option value='3"'>3"</option>
-                <option value='4"'>4"</option>
-                <option value='6"'>6"</option>
-                <option value='8"'>8"</option>
-                <option value='10"'>10"</option>
-            </select>
-        </div>
-        <div class="float-field" id="float-d2-container">
-            <span class="float-label">Reducción</span>
-            <select id="float-d2" class="float-select">
-                <option value="">—</option>
-                <option value='1/2"'>1/2"</option>
-                <option value='3/4"'>3/4"</option>
-                <option value='1"'>1"</option>
-                <option value='1 1/4"'>1 1/4"</option>
-                <option value='1 1/2"'>1 1/2"</option>
-                <option value='2"'>2"</option>
-                <option value='2 1/2"'>2 1/2"</option>
-                <option value='3"'>3"</option>
-                <option value='4"'>4"</option>
-                <option value='6"'>6"</option>
-                <option value='8"'>8"</option>
-                <option value='10"'>10"</option>
+        <div class="float-field" style="flex: 1;">
+            <select id="float-part" class="float-select" style="width: 100%; min-width: 160px;">
+                <!-- Options populated by JS based on selected symbol type -->
             </select>
         </div>
         <div class="float-field">
-            <span class="float-label">Color</span>
-            <input type="color" id="float-color" class="float-color-pick" value="#06b6d4">
+            <input type="color" id="float-color" class="float-color-pick" value="#06b6d4" title="Color del símbolo">
         </div>
     </div>
     <div id="recent-colors-wrapper" style="display:none;">

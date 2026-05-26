@@ -166,20 +166,21 @@ export function generateBOM(dxfData, virtualCouplings = [], pipingSymbols = []) 
         for (const sym of pipingSymbols) {
             if (!sym.type) continue;
             
-            let label = sym.type === 'tapon' ? 'Tapón' : sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
-            if (sym.d1 && sym.d2) {
-                label += ` ${sym.d1}x${sym.d2}`;
-            } else if (sym.d1) {
-                label += ` ${sym.d1}`;
-            } else if (sym.d2) {
-                label += ` ${sym.d2}`;
-            }
+            let label = '';
+            if (sym.type === 'tapon') label = 'Tapón';
+            else if (sym.type === 'tee-lat') label = 'Tee Lat';
+            else if (sym.type) label = sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
+            
+            if (sym.code) label += ` ${sym.code}`;
+            else if (sym.d1 && sym.d2) label += ` ${sym.d1}x${sym.d2}`;
+            else if (sym.d1) label += ` ${sym.d1}`;
+            else if (sym.d2) label += ` ${sym.d2}`;
             
             const key = `Manual_${sym.type}_${label}`;
             if (!fittingCounts[key]) {
                 fittingCounts[key] = {
                     description: label,
-                    type: sym.type === 'tapon' ? 'Tapón' : sym.type.charAt(0).toUpperCase() + sym.type.slice(1),
+                    type: sym.type === 'tapon' ? 'Tapón' : (sym.type === 'tee-lat' ? 'Tee Lateral' : sym.type.charAt(0).toUpperCase() + sym.type.slice(1)),
                     layer: 'Anotación Manual',
                     count: 0
                 };

@@ -28,9 +28,67 @@ window.viewState = viewState;
 // ─── Measurement State ───
 let measurements = [];
 let measurePending = null; // first click point (in DXF coords)
-let currentTool = 'pan';
+let currentTool = 'pan'; // pan, measure, cople, rect, text, sum, draw, delete, sym-*
+let currentMousePt = { x: 0, y: 0 };
 let currentSnapPoint = null;
-let currentMousePt = null;
+
+const CATALOG_AIRPIPE = {
+    'reductor': [
+        { code: '2121', d1: '25mm', d2: '20mm', label: '2121: 25x20mm' },
+        { code: '4221', d1: '40mm', d2: '25mm', label: '4221: 40x25mm' },
+        { code: '5221', d1: '50mm', d2: '25mm', label: '5221: 50x25mm' },
+        { code: '5421', d1: '50mm', d2: '40mm', label: '5421: 50x40mm' },
+        { code: '8421', d1: '63mm', d2: '40mm', label: '8421: 63x40mm' },
+        { code: '6521', d1: '63mm', d2: '50mm', label: '6521: 63x50mm' },
+        { code: '7521', d1: '80mm', d2: '50mm', label: '7521: 80x50mm' },
+        { code: '7621', d1: '80mm', d2: '63mm', label: '7621: 80x63mm' },
+        { code: '8621', d1: '100mm', d2: '63mm', label: '8621: 100x63mm' },
+        { code: '8721', d1: '100mm', d2: '80mm', label: '8721: 100x80mm' },
+        { code: '9721', d1: '150mm', d2: '80mm', label: '9721: 150x80mm' },
+        { code: '9821', d1: '150mm', d2: '100mm', label: '9821: 150x100mm' },
+        { code: 'A921', d1: '200mm', d2: '150mm', label: 'A921: 200x150mm' }
+    ],
+    'tee-red': [
+        { code: '2107', d1: '25mm', d2: '20mm', label: '2107: 25x20mm' },
+        { code: '4207', d1: '40mm', d2: '25mm', label: '4207: 40x25mm' },
+        { code: '5207', d1: '50mm', d2: '25mm', label: '5207: 50x25mm' },
+        { code: '5407', d1: '50mm', d2: '40mm', label: '5407: 50x40mm' },
+        { code: '6407', d1: '63mm', d2: '40mm', label: '6407: 63x40mm' },
+        { code: '6507', d1: '63mm', d2: '50mm', label: '6507: 63x50mm' },
+        { code: '7407', d1: '80mm', d2: '40mm', label: '7407: 80x40mm' },
+        { code: '7507', d1: '80mm', d2: '50mm', label: '7507: 80x50mm' },
+        { code: '8507', d1: '100mm', d2: '50mm', label: '8507: 100x50mm' },
+        { code: '7607', d1: '80mm', d2: '63mm', label: '7607: 80x63mm' },
+        { code: '8607', d1: '100mm', d2: '63mm', label: '8607: 100x63mm' },
+        { code: '8707', d1: '100mm', d2: '80mm', label: '8707: 100x80mm' },
+        { code: '9607', d1: '150mm', d2: '63mm', label: '9607: 150x63mm' },
+        { code: '9707', d1: '150mm', d2: '80mm', label: '9707: 150x80mm' },
+        { code: '9807', d1: '150mm', d2: '100mm', label: '9807: 150x100mm' },
+        { code: 'A607', d1: '200mm', d2: '63mm', label: 'A607: 200x63mm' },
+        { code: 'A707', d1: '200mm', d2: '80mm', label: 'A707: 200x80mm' },
+        { code: 'A807', d1: '200mm', d2: '100mm', label: 'A807: 200x100mm' },
+        { code: 'A907', d1: '200mm', d2: '150mm', label: 'A907: 200x150mm' }
+    ],
+    'tee-lat': [
+        { code: '8712', d1: '100mm', d2: '80mm', label: '8712: 100x80mm' },
+        { code: '9712', d1: '150mm', d2: '80mm', label: '9712: 150x80mm' },
+        { code: '9812', d1: '150mm', d2: '100mm', label: '9812: 150x100mm' },
+        { code: 'A812', d1: '200mm', d2: '100mm', label: 'A812: 200x100mm' },
+        { code: 'A912', d1: '200mm', d2: '150mm', label: 'A912: 200x150mm' }
+    ],
+    'standard': [
+        { d1: '20mm', label: '20mm' },
+        { d1: '25mm', label: '25mm' },
+        { d1: '40mm', label: '40mm' },
+        { d1: '50mm', label: '50mm' },
+        { d1: '63mm', label: '63mm' },
+        { d1: '80mm', label: '80mm' },
+        { d1: '100mm', label: '100mm' },
+        { d1: '150mm', label: '150mm' },
+        { d1: '200mm', label: '200mm' }
+    ]
+};
+
 let currentFileName = '';
 let currentMeasureColor = '#06b6d4';
 let currentUnit = 'mm';
@@ -531,6 +589,11 @@ export function generateModifiedDxfBlob() {
         if (sym.type === 'tee') {
             drawSeg(-sSize, 0,  sSize, 0);
             drawSeg(0, 0,  0, -sSize);
+        } else if (sym.type === 'tee-lat') {
+            drawSeg(-sSize, 0,  sSize, 0); // main straight
+            // 45 degree lateral branch
+            const d = sSize * 0.7071; // sin(45)*sSize
+            drawSeg(0, 0, d, -d);
         } else if (sym.type === 'codo') {
             drawSeg(-sSize, 0,  0, 0);
             drawSeg(0, 0,  0, -sSize);
@@ -548,10 +611,14 @@ export function generateModifiedDxfBlob() {
         }
 
         // Label
-        let label = sym.type === 'tapon'
-            ? 'Tapon'
-            : sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
-        if (sym.d1 && sym.d2) label += ` ${sym.d1}x${sym.d2}`;
+        let label = '';
+        if (sym.type === 'tapon') label = 'Tapón';
+        else if (sym.type === 'tee-lat') label = 'Tee Lat';
+        else label = sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
+        
+        // Use part code if available, else d1xd2
+        if (sym.code) label += ` ${sym.code}`;
+        else if (sym.d1 && sym.d2) label += ` ${sym.d1}x${sym.d2}`;
         else if (sym.d1) label += ` ${sym.d1}`;
         else if (sym.d2) label += ` ${sym.d2}`;
 
@@ -1127,6 +1194,10 @@ function getSymbolConnectionPortsDxf(sym) {
 
     switch (sym.type) {
         case 'tee':      return [portAt(-s, 0), portAt(s, 0), portAt(0, s)];
+        case 'tee-lat':  {
+            const d = s * 0.7071; // 45 deg branch
+            return [portAt(-s, 0), portAt(s, 0), portAt(d, -d)];
+        }
         case 'codo':     return [portAt(-s, 0), portAt(0, s)];
         case 'reductor': return [portAt(-s, 0), portAt(s, 0)];
         case 'brida':    return [portAt(0, -s), portAt(0, s)];
@@ -1246,17 +1317,40 @@ function updateSymbolPropertiesUI(x, y) {
             panel.style.top = (y + 20) + 'px';
         }
         
-        const d1Input = document.getElementById('float-d1');
-        const d2Input = document.getElementById('float-d2');
-        const d2Container = document.getElementById('float-d2-container');
-        
-        if (d1Input) d1Input.value = sym.d1 || '';
-        
-        if (sym.type === 'codo' || sym.type === 'tapon') {
-            if (d2Container) d2Container.style.display = 'none';
-        } else {
-            if (d2Container) d2Container.style.display = 'block';
-            if (d2Input) d2Input.value = sym.d2 || '';
+        const partSelect = document.getElementById('float-part');
+        if (partSelect) {
+            partSelect.innerHTML = '<option value="">— Seleccionar —</option>';
+            
+            let options = [];
+            if (sym.type === 'reductor') {
+                options = CATALOG_AIRPIPE['reductor'];
+            } else if (sym.type === 'tee-lat') {
+                options = CATALOG_AIRPIPE['tee-lat'];
+            } else if (sym.type === 'tee') {
+                // For regular tee, combine standard sizes and reducing tees
+                options = [
+                    ...CATALOG_AIRPIPE['standard'].map(o => ({ ...o, label: `Igual ${o.label}` })),
+                    ...CATALOG_AIRPIPE['tee-red']
+                ];
+            } else {
+                options = CATALOG_AIRPIPE['standard'];
+            }
+            
+            options.forEach(opt => {
+                const el = document.createElement('option');
+                // Store code or d1 as value to identify selection
+                el.value = opt.code ? `code:${opt.code}` : `d1:${opt.d1}`;
+                el.textContent = opt.label;
+                
+                // Set selected if it matches
+                if (opt.code && sym.code === opt.code) {
+                    el.selected = true;
+                } else if (!opt.code && !sym.code && sym.d1 === opt.d1 && !sym.d2) {
+                    el.selected = true;
+                }
+                
+                partSelect.appendChild(el);
+            });
         }
         
         const colorInput = document.getElementById('float-color');
@@ -1268,17 +1362,33 @@ function updateSymbolPropertiesUI(x, y) {
     }
 }
 
-document.getElementById('float-d1')?.addEventListener('change', (e) => {
+document.getElementById('float-part')?.addEventListener('change', (e) => {
     if (selectedSymbolIndex >= 0) {
-        pipingSymbols[selectedSymbolIndex].d1 = e.target.value;
-        saveAnnotations();
-        requestDrawDxf();
-    }
-});
-
-document.getElementById('float-d2')?.addEventListener('change', (e) => {
-    if (selectedSymbolIndex >= 0) {
-        pipingSymbols[selectedSymbolIndex].d2 = e.target.value;
+        const val = e.target.value;
+        const sym = pipingSymbols[selectedSymbolIndex];
+        
+        if (!val) {
+            sym.code = null; sym.d1 = null; sym.d2 = null;
+        } else if (val.startsWith('code:')) {
+            const code = val.replace('code:', '');
+            sym.code = code;
+            // Find the item in catalog to set d1 and d2
+            let found = false;
+            for (const cat of ['reductor', 'tee-red', 'tee-lat']) {
+                const item = CATALOG_AIRPIPE[cat].find(c => c.code === code);
+                if (item) {
+                    sym.d1 = item.d1;
+                    sym.d2 = item.d2;
+                    found = true;
+                    break;
+                }
+            }
+        } else if (val.startsWith('d1:')) {
+            sym.code = null;
+            sym.d1 = val.replace('d1:', '');
+            sym.d2 = null;
+        }
+        
         saveAnnotations();
         requestDrawDxf();
     }
@@ -1553,6 +1663,10 @@ function drawSymbols() {
         if (sym.type === 'tee') {
             ctx.moveTo(-s, 0); ctx.lineTo(s, 0);   // horizontal pipe
             ctx.moveTo(0, 0);  ctx.lineTo(0, s);    // branch down
+        } else if (sym.type === 'tee-lat') {
+            ctx.moveTo(-s, 0); ctx.lineTo(s, 0);
+            const d = s * 0.7071;
+            ctx.moveTo(0, 0); ctx.lineTo(d, d);
         } else if (sym.type === 'codo') {
             ctx.moveTo(-s, 0); ctx.lineTo(0, 0);    // horizontal
             ctx.lineTo(0, s);                        // vertical
@@ -1571,16 +1685,14 @@ function drawSymbols() {
         
         // Label
         let label = '';
-        if (sym.type) {
-            label = sym.type === 'tapon' ? 'Tapón' : sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
-        }
-        if (sym.d1 && sym.d2) {
-            label += ` ${sym.d1}x${sym.d2}`;
-        } else if (sym.d1) {
-            label += ` ${sym.d1}`;
-        } else if (sym.d2) {
-            label += ` ${sym.d2}`;
-        }
+        if (sym.type === 'tapon') label = 'Tapón';
+        else if (sym.type === 'tee-lat') label = 'Tee Lat';
+        else if (sym.type) label = sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
+        
+        if (sym.code) label += ` ${sym.code}`;
+        else if (sym.d1 && sym.d2) label += ` ${sym.d1}x${sym.d2}`;
+        else if (sym.d1) label += ` ${sym.d1}`;
+        else if (sym.d2) label += ` ${sym.d2}`;
         
         ctx.font = 'bold 10px "Inter", sans-serif';
         ctx.fillStyle = baseColor;
@@ -1838,12 +1950,6 @@ function loadAnnotations() {
         console.warn('Could not load from localStorage', e);
     }
 }
-
-// ══════════════════════════════════════════════════
-//  TOOL SWITCHING (exported for annotations.js)
-// ══════════════════════════════════════════════════
-
-// (Tool switching is handled via setToolChangeCallback)
 
 // ══════════════════════════════════════════════════
 //  BOM PANEL
