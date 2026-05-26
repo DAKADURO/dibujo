@@ -157,6 +157,53 @@ body {
     margin-top: 2px;
 }
 
+/* ── Brand header ── */
+.brand {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-primary);
+}
+
+.brand-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--accent-grad);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-glow);
+    flex-shrink: 0;
+}
+
+.brand-icon svg { width: 18px; height: 18px; color: white; }
+
+.brand-text span { 
+    background: var(--accent-grad);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.brand-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--accent-2);
+    background: rgba(14, 165, 233, 0.12);
+    border: 1px solid rgba(14, 165, 233, 0.2);
+    border-radius: 4px;
+    padding: 1px 5px;
+    margin-left: 2px;
+    vertical-align: middle;
+    position: relative;
+}
+
 /* ─── Buttons ─────────────────────────────────────── */
 .btn {
     display: flex;
