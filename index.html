@@ -3,25 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visor DXF Premium</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>DXF Studio — Visor de Planos Premium</title>
+    <meta name="description" content="Visor y editor profesional de archivos DXF con exportación, anotaciones y análisis de tuberías.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
 </head>
 <body>
-    <div id="app">
-        <div id="sidebar" class="glass-panel">
-            <h1 class="brand">DXF <span>Studio</span></h1>
-            
+<div id="app">
+
+    <!-- ═══════════════ SIDEBAR ═══════════════ -->
+    <div id="sidebar">
+
+        <!-- Brand -->
+        <div class="sidebar-header">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    DXF <span>Studio</span>
+                    <sup class="brand-badge">PRO</sup>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-body">
+
+            <!-- ── ARCHIVO ── -->
             <div class="tool-section">
-                <h3>Archivo</h3>
-                <label for="dxf-input" class="btn primary">
-                    <span>📁</span> Cargar DXF
+                <div class="section-label">Archivo</div>
+
+                <label for="dxf-input" class="btn primary" id="btn-load-dxf">
+                    <span class="btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="12" y1="18" x2="12" y2="12"/>
+                            <line x1="9" y1="15" x2="15" y2="15"/>
+                        </svg>
+                    </span>
+                    Cargar DXF
                 </label>
                 <input type="file" id="dxf-input" accept=".dxf" class="hidden">
-                <div style="margin-top: 16px;">
-                    <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Unidades del Plano:</label>
-                    <select id="unit-select" class="btn" style="width: 100%; text-align: left; padding: 6px 10px; font-size: 13px;">
+
+                <div class="select-wrap" style="margin-top:2px;">
+                    <select id="unit-select" class="styled-select">
                         <option value="mm">Milímetros (mm)</option>
                         <option value="m">Metros (m)</option>
                         <option value="in">Pulgadas (in)</option>
@@ -29,216 +60,358 @@
                 </div>
             </div>
 
+            <!-- ── HERRAMIENTAS ── -->
             <div class="tool-section">
-                <h3>Herramientas</h3>
+                <div class="section-label">Herramientas</div>
+
                 <button class="btn tool-btn active" id="btn-pan" title="Mover lienzo">
-                    <span>✋</span> Paneo
+                    <span class="btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/>
+                        </svg>
+                    </span>
+                    Paneo
                 </button>
-                <div style="display:flex; gap:6px;">
-                    <button class="btn tool-btn" id="btn-measure" title="Medir distancia entre dos puntos" style="flex:1;">
-                        <span>📐</span> Medir
+
+                <div class="tool-row">
+                    <button class="btn tool-btn" id="btn-measure" title="Medir distancia entre dos puntos">
+                        <span class="btn-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2 12h20M2 12l4-4M2 12l4 4M22 12l-4-4M22 12l-4 4"/>
+                            </svg>
+                        </span>
+                        Medir
                     </button>
-                    <input type="color" id="measure-color-picker" value="#06b6d4" title="Color de cotas" style="width:36px; height:36px; padding:0; border:1px solid var(--glass-border); border-radius:6px; cursor:pointer; background:transparent;">
+                    <input type="color" id="measure-color-picker" value="#06b6d4" title="Color de cotas" class="color-pick">
                 </div>
-                <button class="btn tool-btn" id="btn-draw" title="Dibujar libre">
-                    <span>✏️</span> Dibujar
+
+                <button class="btn tool-btn" id="btn-draw" title="Dibujar libre sobre el plano">
+                    <span class="btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                        </svg>
+                    </span>
+                    Dibujar
                 </button>
-                <button class="btn tool-btn" id="btn-rect" title="Resaltar área">
-                    <span>🔲</span> Rectángulo
+
+                <button class="btn tool-btn" id="btn-rect" title="Dibujar rectángulo de resaltado">
+                    <span class="btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        </svg>
+                    </span>
+                    Rectángulo
                 </button>
-                <button class="btn tool-btn" id="btn-text" title="Agregar texto">
-                    <span>📝</span> Texto
+
+                <button class="btn tool-btn" id="btn-text" title="Agregar anotación de texto">
+                    <span class="btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>
+                        </svg>
+                    </span>
+                    Texto
                 </button>
-                <div style="display:flex; gap:6px;">
-                    <button class="btn tool-btn" id="btn-cople" title="Matriz de coples en línea" style="flex:1;">
-                        <span>⛓️</span> Matriz Coples
+
+                <div class="tool-row">
+                    <button class="btn tool-btn" id="btn-cople" title="Colocar matriz de coples en tubería">
+                        <span class="btn-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/>
+                                <line x1="9" y1="12" x2="15" y2="12"/>
+                            </svg>
+                        </span>
+                        Matriz Coples
                     </button>
-                    <input type="color" id="cople-color-picker" value="#ef4444" title="Color de coples" style="width:36px; height:36px; padding:0; border:1px solid var(--glass-border); border-radius:6px; cursor:pointer; background:transparent;">
+                    <input type="color" id="cople-color-picker" value="#ef4444" title="Color de coples" class="color-pick">
                 </div>
+
                 <button class="btn tool-btn" id="btn-sum" title="Sumar cotas seleccionadas">
-                    <span>∑</span> Sumar Cotas
+                    <span class="btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                        </svg>
+                    </span>
+                    Sumar Cotas
                 </button>
-                <button class="btn tool-btn" id="btn-delete" title="Borrador (clic para borrar)">
-                    <span>🧽</span> Borrador
+
+                <button class="btn tool-btn" id="btn-delete" title="Borrador: clic sobre elemento para eliminar">
+                    <span class="btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                        </svg>
+                    </span>
+                    Borrador
                 </button>
             </div>
 
+            <!-- ── SÍMBOLOS ── -->
             <div class="tool-section">
-                <h3>Símbolos</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                    <button class="btn tool-btn" id="btn-sym-tee" title="Agregar Tee">
-                        <span>┳</span> Tee
+                <div class="section-label">Símbolos</div>
+                <div class="tool-grid">
+                    <button class="btn tool-btn" id="btn-sym-tee" title="Insertar Tee (T)">
+                        <span class="btn-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                                <line x1="3" y1="12" x2="21" y2="12"/><line x1="12" y1="12" x2="12" y2="21"/>
+                            </svg>
+                        </span>
+                        Tee
                     </button>
-                    <button class="btn tool-btn" id="btn-sym-codo" title="Agregar Codo">
-                        <span>┒</span> Codo
+                    <button class="btn tool-btn" id="btn-sym-codo" title="Insertar Codo (90°)">
+                        <span class="btn-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 12 h9 v9"/>
+                            </svg>
+                        </span>
+                        Codo
                     </button>
-                    <button class="btn tool-btn" id="btn-sym-reductor" title="Agregar Reductor">
-                        <span>⧨</span> Reductor
+                    <button class="btn tool-btn" id="btn-sym-reductor" title="Insertar Reductor">
+                        <span class="btn-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="3,6 21,9 21,15 3,18"/>
+                            </svg>
+                        </span>
+                        Reductor
                     </button>
-                    <button class="btn tool-btn" id="btn-sym-brida" title="Agregar Brida">
-                        <span>⏸</span> Brida
+                    <button class="btn tool-btn" id="btn-sym-brida" title="Insertar Brida">
+                        <span class="btn-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                                <line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
+                            </svg>
+                        </span>
+                        Brida
                     </button>
-                    <button class="btn tool-btn" id="btn-sym-tapon" title="Agregar Tapón (End Cap)" style="grid-column: span 2;">
-                        <span>┫</span> Tapón
+                    <button class="btn tool-btn btn-span2" id="btn-sym-tapon" title="Insertar Tapón (End Cap)">
+                        <span class="btn-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                                <line x1="3" y1="12" x2="16" y2="12"/><line x1="17" y1="5" x2="17" y2="19"/>
+                            </svg>
+                        </span>
+                        Tapón (End Cap)
                     </button>
                 </div>
-                <div style="display: flex; gap: 6px; margin-top: 8px;">
-                    <button class="btn tool-btn" id="btn-sym-move" title="Mover y rotar símbolos" style="flex: 1;">
-                        <span>👆</span> Mover / Rotar
+
+                <div class="tool-row" style="margin-top:4px;">
+                    <button class="btn tool-btn" id="btn-sym-move" title="Mover y rotar símbolo (R = girar 45°)">
+                        <span class="btn-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/>
+                                <polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/>
+                                <line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>
+                            </svg>
+                        </span>
+                        Mover / Rotar
                     </button>
-                    <input type="color" id="sym-color-picker" value="#06b6d4" title="Color de símbolos" style="width:36px; height:36px; padding:0; border:1px solid var(--glass-border); border-radius:6px; cursor:pointer; background:transparent;">
+                    <input type="color" id="sym-color-picker" value="#06b6d4" title="Color de símbolo" class="color-pick">
                 </div>
             </div>
 
+            <!-- ── ANÁLISIS ── -->
             <div class="tool-section">
-                <h3>Análisis</h3>
-                <button class="btn" id="btn-bom" title="Generar listado de materiales">
-                    <span>📋</span> BOM Tubería
+                <div class="section-label">Análisis</div>
+                <button class="btn" id="btn-bom" title="Generar listado de materiales (BOM)">
+                    <span class="btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                    </span>
+                    BOM Tubería
                 </button>
-                <button class="btn" id="btn-clear-measures" title="Borrar mediciones">
-                    <span>🧹</span> Limpiar Medidas
+                <button class="btn" id="btn-clear-measures" title="Eliminar todas las mediciones del lienzo">
+                    <span class="btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>
+                            <path d="M10 11v6"/><path d="M14 11v6"/>
+                        </svg>
+                    </span>
+                    Limpiar Medidas
                 </button>
             </div>
 
+            <!-- ── EXPORTAR ── -->
             <div class="tool-section">
-                <h3>Exportar</h3>
-                <button class="btn" id="btn-export">
-                    <span>🖼️</span> Exportar Imagen
+                <div class="section-label">Exportar</div>
+                <button class="btn" id="btn-export" title="Exportar vista actual como imagen PNG">
+                    <span class="btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                    </span>
+                    Exportar Imagen
                 </button>
-
-                <button class="btn" id="btn-export-dxf" style="margin-top: 8px;">
-                    <span>💾</span> Exportar DXF
+                <button class="btn" id="btn-export-dxf" title="Exportar DXF con anotaciones incrustadas">
+                    <span class="btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                    </span>
+                    Exportar DXF
                 </button>
             </div>
+
+        </div><!-- /sidebar-body -->
+    </div><!-- /sidebar -->
+
+    <!-- ═══════════════ CANVAS AREA ═══════════════ -->
+    <div id="canvas-container">
+        <canvas id="dxf-canvas"></canvas>
+        <canvas id="annotation-canvas"></canvas>
+    </div>
+
+    <!-- ═══════════════ INFO BAR ═══════════════ -->
+    <div id="info-bar">
+        <div class="info-item" id="info-coords">
+            <span class="info-label">Cursor</span>
+            <span id="cursor-x">X: —</span>
+            <span id="cursor-y">Y: —</span>
         </div>
 
-        <div id="canvas-container">
-            <canvas id="dxf-canvas"></canvas>
-            <canvas id="annotation-canvas"></canvas>
+        <div class="info-sep"></div>
+
+        <div class="info-item" id="info-scale">
+            <span class="info-label">Zoom</span>
+            <span id="zoom-level">100%</span>
         </div>
 
-        <!-- Info Bar -->
-        <div id="info-bar">
-            <div class="info-item" id="info-coords">
-                <span class="info-label">Cursor:</span>
-                <span id="cursor-x">X: —</span>
-                <span id="cursor-y">Y: —</span>
-            </div>
-            <div class="info-item" id="info-measure" style="display:none;">
-                <span class="info-label">📐 Medida:</span>
-                <span id="measure-value">—</span>
-            </div>
-            <div class="info-item" id="info-cople" style="display:none; align-items:center;">
-                <span class="info-label" style="color:var(--emerald);">⛓️ Separación:</span>
-                <input type="number" id="cople-dist" value="5791.2" step="100" style="width:70px; background:rgba(255,255,255,0.1); border:1px solid var(--glass-border); color:white; padding:2px 4px; border-radius:4px; font-size:11px;">
-            </div>
-            <div class="info-item" id="info-sum" style="display:none;">
-                <span class="info-label" style="color:var(--primary);">∑ Total:</span>
-                <span id="sum-value" style="font-weight:bold; color:var(--primary);">0.00 mm</span>
-            </div>
-            <div class="info-item" id="info-scale">
-                <span class="info-label">Zoom:</span>
-                <span id="zoom-level">100%</span>
-            </div>
+        <div class="info-sep"></div>
+
+        <div class="info-item" id="info-measure" style="display:none;">
+            <span class="info-label">Medida</span>
+            <span id="measure-value">—</span>
         </div>
 
-        <!-- BOM Panel -->
-        <div id="bom-panel" class="glass-panel hidden">
-            <div class="bom-header">
-                <h2>📋 BOM — Tubería</h2>
-                <div class="bom-actions">
-                    <button class="btn btn-sm" id="btn-bom-csv">
-                        <span>📥</span> CSV
-                    </button>
-                    <button class="btn btn-sm btn-close-bom" id="btn-close-bom">✕</button>
-                </div>
-            </div>
-            <div class="bom-filters">
-                <button class="bom-filter active" data-filter="all">Todo</button>
-                <button class="bom-filter" data-filter="Válvula">Válvulas</button>
-                <button class="bom-filter" data-filter="Accesorio">Accesorios</button>
-                <button class="bom-filter" data-filter="Tubería (spec)">Tubería</button>
-                <button class="bom-filter" data-filter="Tubería (long.)">Longitudes</button>
-                <button class="bom-filter" data-filter="Instrumento">Instrumentos</button>
-            </div>
-            <div class="bom-table-wrap">
-                <table id="bom-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Categoría</th>
-                            <th>Descripción</th>
-                            <th>Detalle</th>
-                            <th>Cantidad</th>
-                            <th>Unidad</th>
-                        </tr>
-                    </thead>
-                    <tbody id="bom-tbody">
-                    </tbody>
-                </table>
-            </div>
-            <div class="bom-footer">
-                <span id="bom-count">0 elementos</span>
-            </div>
+        <div class="info-item" id="info-cople" style="display:none; align-items:center;">
+            <span class="info-label">Separación</span>
+            <input type="number" id="cople-dist" value="5791.2" step="100">
         </div>
 
-        <div id="loading" class="hidden">
-            <div class="spinner"></div>
-            <p>Procesando DXF...</p>
+        <div class="info-item" id="info-sum" style="display:none;">
+            <span class="info-label">∑ Total</span>
+            <span id="sum-value">0.00 mm</span>
         </div>
     </div>
 
-    <div id="floating-sym-props" class="glass-panel" style="display: none; position: absolute; padding: 12px; border-radius: 8px; z-index: 1000; box-shadow: 0 8px 32px rgba(0,0,0,0.5); font-family: 'Inter', sans-serif; pointer-events: auto;">
-        <div style="font-size: 12px; margin-bottom: 8px; font-weight: bold; color: var(--text-light);">Diámetros</div>
-        <div style="display: flex; gap: 8px;">
-            <div>
-                <label style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 4px;">Principal</label>
-                <select id="float-d1" style="font-size: 12px; padding: 4px 6px; outline: none; background: rgba(0,0,0,0.4); color: white; border: 1px solid var(--glass-border); border-radius: 4px; cursor: pointer; min-width: 60px;">
-                    <option value="" style="color: black;">-</option>
-                    <option value="1/2&quot;" style="color: black;">1/2"</option>
-                    <option value="3/4&quot;" style="color: black;">3/4"</option>
-                    <option value="1&quot;" style="color: black;">1"</option>
-                    <option value="1 1/4&quot;" style="color: black;">1 1/4"</option>
-                    <option value="1 1/2&quot;" style="color: black;">1 1/2"</option>
-                    <option value="2&quot;" style="color: black;">2"</option>
-                    <option value="2 1/2&quot;" style="color: black;">2 1/2"</option>
-                    <option value="3&quot;" style="color: black;">3"</option>
-                    <option value="4&quot;" style="color: black;">4"</option>
-                    <option value="6&quot;" style="color: black;">6"</option>
-                    <option value="8&quot;" style="color: black;">8"</option>
-                    <option value="10&quot;" style="color: black;">10"</option>
-                </select>
-            </div>
-            <div id="float-d2-container">
-                <label style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 4px;">Reducción</label>
-                <select id="float-d2" style="font-size: 12px; padding: 4px 6px; outline: none; background: rgba(0,0,0,0.4); color: white; border: 1px solid var(--glass-border); border-radius: 4px; cursor: pointer; min-width: 60px;">
-                    <option value="" style="color: black;">-</option>
-                    <option value="1/2&quot;" style="color: black;">1/2"</option>
-                    <option value="3/4&quot;" style="color: black;">3/4"</option>
-                    <option value="1&quot;" style="color: black;">1"</option>
-                    <option value="1 1/4&quot;" style="color: black;">1 1/4"</option>
-                    <option value="1 1/2&quot;" style="color: black;">1 1/2"</option>
-                    <option value="2&quot;" style="color: black;">2"</option>
-                    <option value="2 1/2&quot;" style="color: black;">2 1/2"</option>
-                    <option value="3&quot;" style="color: black;">3"</option>
-                    <option value="4&quot;" style="color: black;">4"</option>
-                    <option value="6&quot;" style="color: black;">6"</option>
-                    <option value="8&quot;" style="color: black;">8"</option>
-                    <option value="10&quot;" style="color: black;">10"</option>
-                </select>
-            </div>
-            <div>
-                <label style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 4px;">Color</label>
-                <input type="color" id="float-color" style="width: 26px; height: 26px; padding: 0; border: 1px solid var(--glass-border); border-radius: 4px; cursor: pointer; background: transparent;">
+    <!-- ═══════════════ BOM PANEL ═══════════════ -->
+    <div id="bom-panel" class="hidden">
+        <div class="bom-header">
+            <h2>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+                BOM — Tubería
+            </h2>
+            <div class="bom-actions">
+                <button class="btn btn-sm" id="btn-bom-csv" title="Descargar como CSV">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    CSV
+                </button>
+                <button class="btn btn-sm btn-close" id="btn-close-bom" title="Cerrar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
             </div>
         </div>
-        <div id="recent-colors-wrapper" style="margin-top: 10px; display: none;">
-            <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 4px;">Recientes</div>
-            <div id="recent-colors-container" style="display: flex; gap: 4px; flex-wrap: wrap;">
-            </div>
+
+        <div class="bom-filters">
+            <button class="bom-filter active" data-filter="all">Todo</button>
+            <button class="bom-filter" data-filter="Válvula">Válvulas</button>
+            <button class="bom-filter" data-filter="Accesorio">Accesorios</button>
+            <button class="bom-filter" data-filter="Tubería (spec)">Tubería</button>
+            <button class="bom-filter" data-filter="Tubería (long.)">Longitudes</button>
+            <button class="bom-filter" data-filter="Instrumento">Instrumentos</button>
+        </div>
+
+        <div class="bom-table-wrap">
+            <table id="bom-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Categoría</th>
+                        <th>Descripción</th>
+                        <th>Detalle</th>
+                        <th>Cantidad</th>
+                        <th>Unidad</th>
+                    </tr>
+                </thead>
+                <tbody id="bom-tbody"></tbody>
+            </table>
+        </div>
+
+        <div class="bom-footer">
+            <span id="bom-count">0 elementos</span>
         </div>
     </div>
-    
-    <script type="module" src="./main.js"></script>
+
+    <!-- ═══════════════ LOADING ═══════════════ -->
+    <div id="loading" class="hidden">
+        <div class="spinner"></div>
+        <p>Procesando DXF...</p>
+    </div>
+
+</div><!-- /app -->
+
+<!-- ═══════════════ FLOATING SYMBOL PROPS ═══════════════ -->
+<div id="floating-sym-props">
+    <div class="float-panel-title">Diámetros del símbolo</div>
+    <div class="float-row">
+        <div class="float-field">
+            <span class="float-label">Principal</span>
+            <select id="float-d1" class="float-select">
+                <option value="">—</option>
+                <option value='1/2"'>1/2"</option>
+                <option value='3/4"'>3/4"</option>
+                <option value='1"'>1"</option>
+                <option value='1 1/4"'>1 1/4"</option>
+                <option value='1 1/2"'>1 1/2"</option>
+                <option value='2"'>2"</option>
+                <option value='2 1/2"'>2 1/2"</option>
+                <option value='3"'>3"</option>
+                <option value='4"'>4"</option>
+                <option value='6"'>6"</option>
+                <option value='8"'>8"</option>
+                <option value='10"'>10"</option>
+            </select>
+        </div>
+        <div class="float-field" id="float-d2-container">
+            <span class="float-label">Reducción</span>
+            <select id="float-d2" class="float-select">
+                <option value="">—</option>
+                <option value='1/2"'>1/2"</option>
+                <option value='3/4"'>3/4"</option>
+                <option value='1"'>1"</option>
+                <option value='1 1/4"'>1 1/4"</option>
+                <option value='1 1/2"'>1 1/2"</option>
+                <option value='2"'>2"</option>
+                <option value='2 1/2"'>2 1/2"</option>
+                <option value='3"'>3"</option>
+                <option value='4"'>4"</option>
+                <option value='6"'>6"</option>
+                <option value='8"'>8"</option>
+                <option value='10"'>10"</option>
+            </select>
+        </div>
+        <div class="float-field">
+            <span class="float-label">Color</span>
+            <input type="color" id="float-color" class="float-color-pick" value="#06b6d4">
+        </div>
+    </div>
+    <div id="recent-colors-wrapper" style="display:none;">
+        <div class="recent-colors-title">Recientes</div>
+        <div id="recent-colors-container"></div>
+    </div>
+</div>
+
+<script type="module" src="./main.js"></script>
 </body>
 </html>
