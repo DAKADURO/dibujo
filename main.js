@@ -1087,6 +1087,8 @@ function drawSnapIndicator() {
  * Returns the open connection ports of a piping symbol in DXF coordinates.
  * Each port is where another fitting can attach.
  * Port offsets are in screen pixels (SYM_SIZE-based) and converted to DXF units.
+ * `outDxfX/outDxfY` is the unit outward direction vector in DXF space (used to
+ * offset a new symbol so its OWN edge, not its center, lands on this port).
  */
 function getSymbolConnectionPortsDxf(sym) {
     if (sym.dxfX === undefined || sym.dxfY === undefined) return [];
@@ -1097,15 +1099,29 @@ function getSymbolConnectionPortsDxf(sym) {
     const cos = Math.cos(a);
     const sin = Math.sin(a);
 
-    // Convert a screen-space local offset (lx, ly) → DXF point
-    // (canvas Y is downward; DXF Y is upward, hence the negative sign)
+    /**
+     * Convert a screen-space local offset (lx, ly) → DXF point.
+     * The outward normal direction is the normalised (lx, ly) rotated into DXF space.
+     */
     function portAt(lx, ly) {
-        const rx = lx * cos - ly * sin; // rotated screen offset X
-        const ry = lx * sin + ly * cos; // rotated screen offset Y
+        // Position (screen offset → DXF)
+        const rx = lx * cos - ly * sin;
+        const ry = lx * sin + ly * cos;
+
+        // Outward unit direction (screen offset normalised, then rotated to DXF axes)
+        const len = Math.hypot(lx, ly) || 1;
+        const nlx = lx / len;
+        const nly = ly / len;
+        const ndx = nlx * cos - nly * sin; // screen X maps to DXF X
+        const ndy = nlx * sin + nly * cos; // screen Y is downward; DXF Y is upward
+
         return {
             x: sym.dxfX + rx / viewState.scale,
             y: sym.dxfY - ry / viewState.scale,
-            isSymbolPort: true
+            isSymbolPort: true,
+            // Outward direction in DXF coordinate space
+            outDxfX:  ndx,
+            outDxfY: -ndy   // negate because DXF Y is opposite of screen Y
         };
     }
 
@@ -1940,7 +1956,21 @@ canvas.addEventListener('mousedown', (e) => {
         const rect = canvas.getBoundingClientRect();
         const cx = e.clientX - rect.left;
         const cy = e.clientY - rect.top;
-        const dxfPt = currentSnapPoint ? { ...currentSnapPoint } : canvasToDxf(cx, cy);
+        // Compute placement position in DXF space.
+        // If snapping to another symbol's port, shift the new symbol's CENTER outward
+        // by half its own size so its EDGE (port) lands exactly on the snap point
+        // instead of its center overlapping the other symbol.
+        let dxfPt;
+        if (currentSnapPoint && currentSnapPoint.isSymbolPort) {
+            const scaleFactor = Math.min(1.0, viewState.scale / 15.0) || 1.0;
+            const halfSizeDxf  = (SYM_SIZE * scaleFactor) / viewState.scale;
+            dxfPt = {
+                x: currentSnapPoint.x + (currentSnapPoint.outDxfX || 0) * halfSizeDxf,
+                y: currentSnapPoint.y + (currentSnapPoint.outDxfY || 0) * halfSizeDxf
+            };
+        } else {
+            dxfPt = currentSnapPoint ? { ...currentSnapPoint } : canvasToDxf(cx, cy);
+        }
         const symType = currentTool.replace('sym-', '');
         
         let newSym = null;
