@@ -2457,6 +2457,17 @@ window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         linePending = null;
         measurePending = null;
+        if (selectedSymbolIndex >= 0) {
+            pipingSymbols[selectedSymbolIndex].selected = false;
+            selectedSymbolIndex = -1;
+            updateSymbolPropertiesUI();
+        }
+        
+        const panBtn = document.getElementById('btn-pan');
+        if (panBtn && typeof setMode === 'function') {
+            setMode('pan', panBtn);
+        }
+        
         requestDrawDxf();
     }
     

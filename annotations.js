@@ -47,6 +47,13 @@ export function setupAnnotations() {
     
     // Allow deleting Fabric objects with Backspace/Delete keys
     window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (fCanvas) {
+                fCanvas.discardActiveObject();
+                fCanvas.renderAll();
+            }
+        }
+        
         if (e.key === 'Delete' || e.key === 'Backspace') {
             const activeObjects = fCanvas.getActiveObjects();
             if (activeObjects.length) {
