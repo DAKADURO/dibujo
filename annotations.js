@@ -37,9 +37,11 @@ export function setupAnnotations() {
     
     // ─── Symbols ───
     document.getElementById('btn-sym-tee').addEventListener('click', (e) => setMode('sym-tee', e.target.closest('.btn')));
+    document.getElementById('btn-sym-tee-lat')?.addEventListener('click', (e) => setMode('sym-tee-lat', e.target.closest('.btn')));
     document.getElementById('btn-sym-codo').addEventListener('click', (e) => setMode('sym-codo', e.target.closest('.btn')));
     document.getElementById('btn-sym-reductor').addEventListener('click', (e) => setMode('sym-reductor', e.target.closest('.btn')));
     document.getElementById('btn-sym-brida').addEventListener('click', (e) => setMode('sym-brida', e.target.closest('.btn')));
+    document.getElementById('btn-sym-tapon')?.addEventListener('click', (e) => setMode('sym-tapon', e.target.closest('.btn')));
     document.getElementById('btn-sym-move').addEventListener('click', (e) => setMode('sym-move', e.target.closest('.btn')));
     
     // Allow deleting Fabric objects with Backspace/Delete keys
