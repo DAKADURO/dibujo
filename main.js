@@ -1212,60 +1212,113 @@ function getSymbolConnectionPortsDxf(sym) {
     }
 }
 
-function findClosestSnapPoint(mouseDxfPt, maxScreenDist) {
-    let closestPt = null;
-    let minDistSq = Infinity;
-    const maxDxfDistSq = Math.pow(maxScreenDist / viewState.scale, 2);
+function getSegmentsIntersection(p1, p2, p3, p4) {
+    const s1_x = p2.x - p1.x;
+    const s1_y = p2.y - p1.y;
+    const s2_x = p4.x - p3.x;
+    const s2_y = p4.y - p3.y;
 
-    // ── 1. DXF entity vertices and edges ────────────────────────────────────────────────
-    if (dxfData && dxfData.entities) {
-        for (const ent of dxfData.entities) {
-            const points = getEntityPoints(ent);
-            for (const p of points) {
-                if (p.x === undefined || p.y === undefined) continue;
-                const dx = p.x - mouseDxfPt.x;
-                const dy = p.y - mouseDxfPt.y;
-                const distSq = dx * dx + dy * dy;
-                if (distSq < maxDxfDistSq && distSq < minDistSq) {
-                    minDistSq = distSq;
-                    closestPt = { x: p.x, y: p.y };
-                }
-            }
-            
-            if (ent.type === 'LINE' || ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') {
-                const pts = ent.vertices || [];
-                for (let i = 0; i < pts.length - 1; i++) {
-                    if (pts[i].x === undefined || pts[i].y === undefined || pts[i+1].x === undefined || pts[i+1].y === undefined) continue;
-                    const proj = projectPointOnSegment(mouseDxfPt, pts[i], pts[i+1]);
-                    const dx = proj.x - mouseDxfPt.x;
-                    const dy = proj.y - mouseDxfPt.y;
-                    const distSq = dx * dx + dy * dy;
-                    if (distSq < maxDxfDistSq && distSq < minDistSq) {
-                        minDistSq = distSq;
-                        closestPt = proj;
-                    }
-                }
+    const denom = (-s2_x * s1_y + s1_x * s2_y);
+    if (Math.abs(denom) < 1e-6) return null; // Parallel lines
+
+    const s = (-s1_y * (p1.x - p3.x) + s1_x * (p1.y - p3.y)) / denom;
+    const t = ( s2_x * (p1.y - p3.y) - s2_y * (p1.x - p3.x)) / denom;
+
+    // Tolerance to catch endpoints that just touch
+    if (s >= -1e-4 && s <= 1.0001 && t >= -1e-4 && t <= 1.0001) {
+        return {
+            x: p1.x + (t * s1_x),
+            y: p1.y + (t * s1_y)
+        };
+    }
+    return null;
+}
+
+function findClosestSnapPoint(mouseDxfPt, maxScreenDist) {
+    let bestPt = null;
+    let bestDistSq = Infinity;
+    let bestPriority = 99; // 0=Port, 1=Intersection, 2=Endpoint, 3=Edge (Lower is better)
+    
+    const maxDxfDistSq = Math.pow(maxScreenDist / viewState.scale, 2);
+    const symMaxDxfDistSq = Math.pow((maxScreenDist + 6) / viewState.scale, 2);
+
+    function checkSnap(pt, distSq, priority, portData = null) {
+        const thresholdSq = portData ? symMaxDxfDistSq : maxDxfDistSq;
+        if (distSq > thresholdSq) return;
+        if (priority < bestPriority || (priority === bestPriority && distSq < bestDistSq)) {
+            bestPriority = priority;
+            bestDistSq = distSq;
+            bestPt = { x: pt.x, y: pt.y };
+            if (portData) {
+                bestPt.isSymbolPort = true;
+                bestPt.outDxfX = portData.outDxfX;
+                bestPt.outDxfY = portData.outDxfY;
             }
         }
     }
 
-    // ── 2. Piping symbol connection ports (snaps with higher priority) ────────
-    // Use a slightly wider search radius for symbol ports so they feel magnetic.
-    const symMaxDxfDistSq = Math.pow((maxScreenDist + 6) / viewState.scale, 2);
+    // ── 1. Symbol Ports (Priority 0) ──
     for (const sym of pipingSymbols) {
         const ports = getSymbolConnectionPortsDxf(sym);
         for (const p of ports) {
             const dx = p.x - mouseDxfPt.x;
             const dy = p.y - mouseDxfPt.y;
-            const distSq = dx * dx + dy * dy;
-            if (distSq < symMaxDxfDistSq && distSq < minDistSq) {
-                minDistSq = distSq;
-                closestPt = p; // already has isSymbolPort: true
+            checkSnap(p, dx * dx + dy * dy, 0, p);
+        }
+    }
+
+    // ── 2. DXF Entities (Endpoints, Intersections, Edges) ──
+    if (dxfData && dxfData.entities) {
+        const nearbySegments = [];
+        const sr = Math.sqrt(maxDxfDistSq);
+
+        for (const ent of dxfData.entities) {
+            // Endpoints (Priority 2)
+            const points = getEntityPoints(ent);
+            for (const p of points) {
+                if (p.x === undefined || p.y === undefined) continue;
+                const dx = p.x - mouseDxfPt.x;
+                const dy = p.y - mouseDxfPt.y;
+                checkSnap(p, dx * dx + dy * dy, 2);
+            }
+
+            // Edges (Priority 3) & Collect nearby segments for intersection
+            if (ent.type === 'LINE' || ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') {
+                const pts = ent.vertices || [];
+                for (let i = 0; i < pts.length - 1; i++) {
+                    const p1 = pts[i], p2 = pts[i+1];
+                    if (p1.x === undefined || p1.y === undefined || p2.x === undefined || p2.y === undefined) continue;
+                    
+                    const proj = projectPointOnSegment(mouseDxfPt, p1, p2);
+                    const dx = proj.x - mouseDxfPt.x;
+                    const dy = proj.y - mouseDxfPt.y;
+                    checkSnap(proj, dx * dx + dy * dy, 3);
+
+                    // Collect segments that are roughly within snap distance of mouse
+                    const minX = Math.min(p1.x, p2.x) - sr, maxX = Math.max(p1.x, p2.x) + sr;
+                    const minY = Math.min(p1.y, p2.y) - sr, maxY = Math.max(p1.y, p2.y) + sr;
+                    if (mouseDxfPt.x >= minX && mouseDxfPt.x <= maxX && mouseDxfPt.y >= minY && mouseDxfPt.y <= maxY) {
+                        nearbySegments.push({p1, p2});
+                    }
+                }
+            }
+        }
+
+        // Intersections of nearby segments (Priority 1)
+        for (let i = 0; i < nearbySegments.length; i++) {
+            for (let j = i + 1; j < nearbySegments.length; j++) {
+                const s1 = nearbySegments[i], s2 = nearbySegments[j];
+                const inter = getSegmentsIntersection(s1.p1, s1.p2, s2.p1, s2.p2);
+                if (inter) {
+                    const dx = inter.x - mouseDxfPt.x;
+                    const dy = inter.y - mouseDxfPt.y;
+                    checkSnap(inter, dx * dx + dy * dy, 1);
+                }
             }
         }
     }
 
-    return closestPt;
+    return bestPt;
 }
 
 function drawCross(x, y, size, color) {
