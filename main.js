@@ -1639,6 +1639,13 @@ function handleDeleteClick(e) {
         }
     }
     
+    if (!deletedSomething) {
+        // 5. Check Fabric.js annotations (Freehand lines, Rectangles, Text)
+        if (window.deleteFabricObjectAtEvent) {
+            deletedSomething = window.deleteFabricObjectAtEvent(e);
+        }
+    }
+    
     if (deletedSomething) {
         saveAnnotations();
         drawDxf();

@@ -199,6 +199,31 @@ export function setupAnnotations() {
     });
 }
 
+window.deleteFabricObjectAtEvent = function(e) {
+    if (!fCanvas) return false;
+    
+    // Convert click to canvas coordinates
+    const rect = fCanvas.getElement().getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const pointer = new fabric.Point(x, y);
+    
+    let objects = fCanvas.getObjects();
+    let hit = false;
+    
+    for (let i = objects.length - 1; i >= 0; i--) {
+        let obj = objects[i];
+        if (obj.containsPoint(pointer) || (obj.type === 'path' && obj._getLeftTopCoords && 
+            Math.abs(obj.left - x) < 20 && Math.abs(obj.top - y) < 20)) {
+            // Check bounding box or simple distance for thin paths
+            fCanvas.remove(obj);
+            hit = true;
+            break;
+        }
+    }
+    return hit;
+};
+
 // ─── Piping Symbols ───
 // Called by main.js from the dxf-canvas click handler (canvas-relative coords)
 export function placeSymbolAt(type, canvasX, canvasY) {
