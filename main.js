@@ -1217,7 +1217,7 @@ function findClosestSnapPoint(mouseDxfPt, maxScreenDist) {
     let minDistSq = Infinity;
     const maxDxfDistSq = Math.pow(maxScreenDist / viewState.scale, 2);
 
-    // ── 1. DXF entity vertices ────────────────────────────────────────────────
+    // ── 1. DXF entity vertices and edges ────────────────────────────────────────────────
     if (dxfData && dxfData.entities) {
         for (const ent of dxfData.entities) {
             const points = getEntityPoints(ent);
@@ -1229,6 +1229,21 @@ function findClosestSnapPoint(mouseDxfPt, maxScreenDist) {
                 if (distSq < maxDxfDistSq && distSq < minDistSq) {
                     minDistSq = distSq;
                     closestPt = { x: p.x, y: p.y };
+                }
+            }
+            
+            if (ent.type === 'LINE' || ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') {
+                const pts = ent.vertices || [];
+                for (let i = 0; i < pts.length - 1; i++) {
+                    if (pts[i].x === undefined || pts[i].y === undefined || pts[i+1].x === undefined || pts[i+1].y === undefined) continue;
+                    const proj = projectPointOnSegment(mouseDxfPt, pts[i], pts[i+1]);
+                    const dx = proj.x - mouseDxfPt.x;
+                    const dy = proj.y - mouseDxfPt.y;
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq < maxDxfDistSq && distSq < minDistSq) {
+                        minDistSq = distSq;
+                        closestPt = proj;
+                    }
                 }
             }
         }
@@ -1916,6 +1931,14 @@ function distToSegmentSquared(p, v, w) {
     return distSquared(p, { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) });
 }
 
+function projectPointOnSegment(p, v, w) {
+    const l2 = distSquared(v, w);
+    if (l2 === 0) return { x: v.x, y: v.y };
+    let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) };
+}
+
 function distSquared(v, w) {
     return (v.x - w.x)*(v.x - w.x) + (v.y - w.y)*(v.y - w.y);
 }
@@ -2265,7 +2288,20 @@ canvas.addEventListener('mousedown', (e) => {
 canvas.addEventListener('mousemove', (e) => {
     // Update cursor coordinates
     if (dxfData) {
-        const pt = screenToDxf(e.clientX, e.clientY);
+        let pt = screenToDxf(e.clientX, e.clientY);
+        
+        // Modo Ortogonal (Ortho) para la herramienta de línea
+        // Fuerza la línea a ser horizontal o vertical (Shift para liberar)
+        if (currentTool === 'line' && linePending && !e.shiftKey) {
+            const dx = Math.abs(pt.x - linePending.x);
+            const dy = Math.abs(pt.y - linePending.y);
+            if (dx > dy) {
+                pt.y = linePending.y;
+            } else {
+                pt.x = linePending.x;
+            }
+        }
+        
         currentMousePt = pt;
         
         const cx = document.getElementById('cursor-x');
@@ -2275,6 +2311,16 @@ canvas.addEventListener('mousemove', (e) => {
         
         if (currentTool === 'measure' || currentTool === 'line' || currentTool.startsWith('sym-') || symDragging) {
             currentSnapPoint = findClosestSnapPoint(pt, 15); // 15px snap radius
+            
+            // Si el snap jaló el cursor fuera del eje ortogonal, forzarlo de vuelta al eje
+            if (currentTool === 'line' && linePending && !e.shiftKey && currentSnapPoint) {
+                if (Math.abs(pt.x - linePending.x) > Math.abs(pt.y - linePending.y)) {
+                    currentSnapPoint.y = linePending.y; // Mantener horizontal
+                } else {
+                    currentSnapPoint.x = linePending.x; // Mantener vertical
+                }
+            }
+            
             if (!viewState.isDragging) requestDrawDxf(); // Redraw for live line/snap
         } else {
             currentSnapPoint = null;
