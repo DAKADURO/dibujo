@@ -465,9 +465,8 @@ export function generateModifiedDxfBlob() {
         const midX = (m.p1.x + m.p2.x) / 2;
         const midY = (m.p1.y + m.p2.y) / 2;
 
-        // Derive a text height proportional to the DXF drawing's extents (not screen pixels).
-        // We aim for roughly 1% of the measurement distance so labels are always readable.
-        const dxfFontSize = Math.max(m.distance * 0.04, 1);
+        // Text height = 1% of measurement distance (was 4%), with minimum 0.5 drawing units.
+        const dxfFontSize = Math.max(m.distance * 0.01, 0.5);
         const textStr  = m.distance.toFixed(2);
         const textW    = textStr.length * dxfFontSize * 0.6;
         customEntities += dxfText(textStr, midX - textW / 2, midY + dxfFontSize * 0.6,
@@ -489,11 +488,13 @@ export function generateModifiedDxfBlob() {
             }
         }
         if (isFinite(minX) && isFinite(maxX) && maxX > minX) {
-            drawingScale = (maxX - minX) / 1000; // 1000 arbitrary canvas-units reference
+            // Dividing by 8000 gives a small proportional unit suitable for
+            // typical mm-scale piping drawings (coords in the 5000-15000 range).
+            drawingScale = (maxX - minX) / 8000;
         }
     }
-    const cHalf  = Math.max(drawingScale * 5,  1);  // half-width of coupling rectangle
-    const cHalfH = Math.max(drawingScale * 2,  0.4); // half-height
+    const cHalf  = Math.max(drawingScale * 1.5, 0.3);  // half-width of coupling rectangle
+    const cHalfH = Math.max(drawingScale * 0.6, 0.1); // half-height
 
     for (const c of virtualCouplings) {
         const cx = c.x, cy = c.y;
@@ -510,8 +511,8 @@ export function generateModifiedDxfBlob() {
     }
 
     // ── 4. Piping Symbols ────────────────────────────────────────────────────
-    // Symbol size in DXF drawing units (proportional, not screen pixels).
-    const sSize = Math.max(drawingScale * 7, 1);
+    // Symbol size in DXF drawing units. Multiplier 2 keeps symbols small but visible.
+    const sSize = Math.max(drawingScale * 2, 0.3);
 
     for (const sym of pipingSymbols) {
         const cx = sym.dxfX, cy = sym.dxfY;
