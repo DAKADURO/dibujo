@@ -2889,3 +2889,66 @@ canvas.addEventListener('wheel', (e) => {
     
     requestDrawDxf();
 }, { passive: false });
+
+// ─── Project Save/Load Logic ───
+document.getElementById('btn-save-project')?.addEventListener('click', () => {
+    const data = {
+        measurements,
+        customLines,
+        areas,
+        angles,
+        couplings: virtualCouplings,
+        unit: currentUnit,
+        symbols: pipingSymbols,
+        version: "1.0"
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (currentFileName ? currentFileName.replace('.dxf', '') : 'proyecto') + '_anotaciones.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+});
+
+document.getElementById('project-input')?.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+        try {
+            const data = JSON.parse(evt.target.result);
+            if (data.measurements) measurements = data.measurements;
+            if (data.customLines) customLines = data.customLines;
+            if (data.areas) areas = data.areas;
+            if (data.angles) angles = data.angles;
+            if (data.couplings) {
+                virtualCouplings.length = 0;
+                virtualCouplings.push(...data.couplings);
+            }
+            if (data.symbols) {
+                pipingSymbols.length = 0;
+                pipingSymbols.push(...data.symbols);
+            }
+            if (data.unit) {
+                currentUnit = data.unit;
+                const sel = document.getElementById('unit-select');
+                if (sel) sel.value = currentUnit;
+            }
+            
+            saveAnnotations();
+            drawDxf();
+            alert('Anotaciones cargadas correctamente.');
+        } catch (err) {
+            console.error('Error parsing project JSON:', err);
+            alert('Error al cargar el archivo de anotaciones.');
+        }
+        // Reset input so the same file can be loaded again if needed
+        e.target.value = '';
+    };
+    reader.readAsText(file);
+});
