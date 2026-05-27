@@ -73,7 +73,7 @@
         <div class="ribbon-panel">
             <div class="ribbon-group">
                 <div class="tool-col">
-                    <button class="btn tool-btn ribbon-btn" id="btn-measure" title="Medir distancia entre dos puntos">
+                    <button class="btn tool-btn ribbon-btn" id="btn-measure" title="Medir distancia simple">
                         <span class="btn-icon">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M2 12h20M2 12l4-4M2 12l4 4M22 12l-4-4M22 12l-4 4"/>
@@ -82,6 +82,42 @@
                         Medir
                     </button>
                     <input type="color" id="measure-color-picker" value="#06b6d4" title="Color de cotas" class="color-pick color-pick-small">
+                </div>
+
+                <div class="tool-col">
+                    <button class="btn tool-btn ribbon-btn" id="btn-measure-cont" title="Acotamiento continuo">
+                        <span class="btn-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="2 12 10 12 18 12 22 12"/><circle cx="2" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="22" cy="12" r="2"/>
+                            </svg>
+                        </span>
+                        Med. Cont.
+                    </button>
+                    <div class="color-pick-spacer" style="height: 20px;"></div>
+                </div>
+
+                <div class="tool-col">
+                    <button class="btn tool-btn ribbon-btn" id="btn-measure-area" title="Medir Área (clics para polígono, clic derecho para cerrar)">
+                        <span class="btn-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/>
+                            </svg>
+                        </span>
+                        Área
+                    </button>
+                    <div class="color-pick-spacer" style="height: 20px;"></div>
+                </div>
+
+                <div class="tool-col">
+                    <button class="btn tool-btn ribbon-btn" id="btn-measure-angle" title="Medir Ángulo (3 puntos: vértice, inicio, fin)">
+                        <span class="btn-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 20h18"/><path d="M3 20L18 5"/><path d="M12 20a9 9 0 0 1-5.5-3"/>
+                            </svg>
+                        </span>
+                        Ángulo
+                    </button>
+                    <div class="color-pick-spacer" style="height: 20px;"></div>
                 </div>
 
                 <div class="tool-col">
@@ -277,6 +313,16 @@
         <div class="info-item" id="info-measure" style="display:none;">
             <span class="info-label">Medida</span>
             <span id="measure-value">—</span>
+        </div>
+
+        <div class="info-item" id="info-area" style="display:none;">
+            <span class="info-label">Área</span>
+            <span id="area-value">—</span>
+        </div>
+
+        <div class="info-item" id="info-angle" style="display:none;">
+            <span class="info-label">Ángulo</span>
+            <span id="angle-value">—</span>
         </div>
 
         <div class="info-item" id="info-cople" style="display:none; align-items:center;">

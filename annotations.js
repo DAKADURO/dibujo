@@ -27,6 +27,9 @@ export function setupAnnotations() {
     // ─── Tool Buttons ───
     document.getElementById('btn-pan').addEventListener('click', (e) => setMode('pan', e.target.closest('.btn')));
     document.getElementById('btn-measure').addEventListener('click', (e) => setMode('measure', e.target.closest('.btn')));
+    document.getElementById('btn-measure-cont')?.addEventListener('click', (e) => setMode('measure-cont', e.target.closest('.btn')));
+    document.getElementById('btn-measure-area')?.addEventListener('click', (e) => setMode('measure-area', e.target.closest('.btn')));
+    document.getElementById('btn-measure-angle')?.addEventListener('click', (e) => setMode('measure-angle', e.target.closest('.btn')));
     document.getElementById('btn-cople').addEventListener('click', (e) => setMode('cople', e.target.closest('.btn')));
     document.getElementById('btn-line')?.addEventListener('click', (e) => setMode('line', e.target.closest('.btn')));
     document.getElementById('btn-rect').addEventListener('click', (e) => setMode('rect', e.target.closest('.btn')));
@@ -410,7 +413,7 @@ export function setMode(mode, btnElement) {
         fCanvas.forEachObject(obj => obj.set('selectable', false));
         if (fabricWrapper) fabricWrapper.style.pointerEvents = 'auto';
     } else {
-        // pan, measure, cople, delete, sum, sym-tee/codo/reductor/brida
+        // pan, measure, measure-cont, measure-area, measure-angle, cople, delete, sum, sym-tee/codo/reductor/brida
         // let clicks pass through to the DXF canvas
         fCanvas.forEachObject(obj => obj.set('selectable', mode === 'pan'));
         if (fabricWrapper) fabricWrapper.style.pointerEvents = 'none';

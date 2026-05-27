@@ -467,8 +467,8 @@ canvas {
     font-family: 'Inter', sans-serif;
 }
 
-#info-measure .info-label { color: var(--cyan); }
-#measure-value { color: var(--cyan); font-weight: 600; }
+#info-measure .info-label, #info-area .info-label, #info-angle .info-label { color: var(--cyan); }
+#measure-value, #area-value, #angle-value { color: var(--cyan); font-weight: 600; }
 #sum-value { color: var(--accent-2); font-weight: 700; }
 #zoom-level { color: var(--text-secondary); }
 
@@ -794,8 +794,15 @@ input[type="color"].float-color-pick:hover { border-color: var(--glass-border-ho
 /* ─── Misc Utilities ──────────────────────────────── */
 .hidden { display: none !important; }
 
-#canvas-container.measure-mode { cursor: crosshair; }
-#canvas-container.measure-mode .canvas-container { cursor: crosshair !important; }
+#canvas-container.measure-mode, 
+#canvas-container.measure-cont-mode, 
+#canvas-container.measure-area-mode, 
+#canvas-container.measure-angle-mode { cursor: crosshair; }
+
+#canvas-container.measure-mode .canvas-container,
+#canvas-container.measure-cont-mode .canvas-container,
+#canvas-container.measure-area-mode .canvas-container,
+#canvas-container.measure-angle-mode .canvas-container { cursor: crosshair !important; }
 
 /* Tooltip via title (enhanced with CSS where possible) */
 .btn[title]:hover::before {

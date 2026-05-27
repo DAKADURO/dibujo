@@ -28,9 +28,14 @@ window.viewState = viewState;
 // ─── Measurement State ───
 let measurements = [];
 let customLines = [];
+let areas = [];
+let angles = [];
 let measurePending = null; // first click point (in DXF coords)
+let contPending = null;
+let areaPendingPoints = [];
+let anglePendingPoints = [];
 let linePending = null;
-let currentTool = 'pan'; // pan, measure, cople, rect, text, sum, draw, delete, sym-*
+let currentTool = 'pan'; // pan, measure, measure-cont, measure-area, measure-angle, cople, rect, text, sum, draw, delete, sym-*
 let currentMousePt = { x: 0, y: 0 };
 let currentSnapPoint = null;
 
@@ -141,8 +146,10 @@ setToolChangeCallback((tool) => {
     currentTool = tool;
     const container = document.getElementById('canvas-container');
     const infoCople = document.getElementById('info-cople');
+    const infoArea = document.getElementById('info-area');
+    const infoAngle = document.getElementById('info-angle');
     
-    if (tool === 'measure' || tool === 'line') {
+    if (tool === 'measure' || tool === 'measure-cont' || tool === 'measure-area' || tool === 'measure-angle' || tool === 'line') {
         container.classList.add('measure-mode');
     } else {
         container.classList.remove('measure-mode');
@@ -150,16 +157,24 @@ setToolChangeCallback((tool) => {
     
     const infoSum = document.getElementById('info-sum');
     
-    if (tool === 'cople' || tool === 'delete' || tool === 'sum' || (tool.startsWith('sym-') && tool !== 'sym-move') || tool === 'line') {
+    if (tool === 'cople' || tool === 'delete' || tool === 'sum' || (tool.startsWith('sym-') && tool !== 'sym-move') || tool === 'line' || tool.startsWith('measure')) {
         container.classList.add('measure-mode'); // Use crosshair
         if (tool === 'cople' && infoCople) infoCople.style.display = 'flex';
         else if (infoCople) infoCople.style.display = 'none';
+        
+        if (tool === 'measure-area' && infoArea) infoArea.style.display = 'flex';
+        else if (infoArea) infoArea.style.display = 'none';
+
+        if (tool === 'measure-angle' && infoAngle) infoAngle.style.display = 'flex';
+        else if (infoAngle) infoAngle.style.display = 'none';
         
         if (tool === 'sum' && infoSum) infoSum.style.display = 'flex';
         else if (infoSum) infoSum.style.display = 'none';
     } else {
         if (infoCople) infoCople.style.display = 'none';
         if (infoSum) infoSum.style.display = 'none';
+        if (infoArea) infoArea.style.display = 'none';
+        if (infoAngle) infoAngle.style.display = 'none';
     }
     
     // Clear selection when not in sum mode
@@ -229,8 +244,13 @@ dxfInput.addEventListener('change', (e) => {
             // Reset state
             measurements = [];
             customLines = [];
+            areas = [];
+            angles = [];
             virtualCouplings.length = 0;
             measurePending = null;
+            contPending = null;
+            areaPendingPoints = [];
+            anglePendingPoints = [];
             linePending = null;
             bomData = null;
             
@@ -814,10 +834,13 @@ function drawDxf() {
     ctx.restore();
     
     // Draw overlays (in screen coords)
-    drawCouplings();
+    drawSnapIndicator();
     drawCustomLines();
+    drawCouplings();
     drawSymbols();
     drawMeasurements();
+    drawAreas();
+    drawAngles();
     drawSymbols();
     drawSnapIndicator();
     
@@ -1092,9 +1115,9 @@ function drawMeasurements() {
         }
     }
     
-    // Draw pending first point
-    if (measurePending && currentMousePt) {
-        const sp = dxfToScreen(measurePending.x, measurePending.y);
+    if ((measurePending || contPending) && currentMousePt) {
+        const pendingPt = measurePending || contPending;
+        const sp = dxfToScreen(pendingPt.x, pendingPt.y);
         drawCross(sp.x, sp.y, crossSize, '#f59e0b');
         
         // Live line to cursor or snap point
@@ -1115,6 +1138,175 @@ function drawMeasurements() {
         ctx.textAlign = 'left';
         ctx.textBaseline = 'bottom';
         ctx.fillText('Clic en 2° punto', sp.x + 12, sp.y - 6);
+    }
+    
+    ctx.restore();
+}
+
+function drawAreas() {
+    if (areas.length === 0 && areaPendingPoints.length === 0) return;
+    ctx.save();
+    const exportScale = window.exportScaleFactor || 1;
+    
+    for (const a of areas) {
+        if (a.points.length < 3) continue;
+        const color = a.color || '#06b6d4';
+        
+        ctx.beginPath();
+        const start = dxfToScreen(a.points[0].x, a.points[0].y);
+        ctx.moveTo(start.x, start.y);
+        for (let i = 1; i < a.points.length; i++) {
+            const p = dxfToScreen(a.points[i].x, a.points[i].y);
+            ctx.lineTo(p.x, p.y);
+        }
+        ctx.closePath();
+        
+        ctx.fillStyle = hexToRgba(color, 0.15);
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2 * exportScale;
+        ctx.setLineDash([5, 5]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Label in center
+        let cx = 0, cy = 0;
+        for (const p of a.points) {
+            cx += p.x; cy += p.y;
+        }
+        cx /= a.points.length;
+        cy /= a.points.length;
+        
+        const center = dxfToScreen(cx, cy);
+        const label = formatArea(a.area);
+        const fontSize = 14 * exportScale;
+        ctx.font = `bold ${fontSize}px "Inter", sans-serif`;
+        
+        const tw = ctx.measureText(label).width;
+        ctx.fillStyle = hexToRgba(color, 0.2);
+        ctx.fillRect(center.x - tw/2 - 4, center.y - fontSize/2 - 4, tw + 8, fontSize + 8);
+        
+        ctx.fillStyle = color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, center.x, center.y);
+    }
+    
+    if (areaPendingPoints.length > 0) {
+        const color = '#f59e0b';
+        ctx.beginPath();
+        const start = dxfToScreen(areaPendingPoints[0].x, areaPendingPoints[0].y);
+        ctx.moveTo(start.x, start.y);
+        for (let i = 1; i < areaPendingPoints.length; i++) {
+            const p = dxfToScreen(areaPendingPoints[i].x, areaPendingPoints[i].y);
+            ctx.lineTo(p.x, p.y);
+        }
+        
+        if (currentMousePt) {
+            const targetPt = currentSnapPoint || currentMousePt;
+            const tp = dxfToScreen(targetPt.x, targetPt.y);
+            ctx.lineTo(tp.x, tp.y);
+        }
+        
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // draw markers
+        for (const pt of areaPendingPoints) {
+            const p = dxfToScreen(pt.x, pt.y);
+            drawCross(p.x, p.y, 6, color);
+        }
+    }
+    
+    ctx.restore();
+}
+
+function drawAngles() {
+    if (angles.length === 0 && anglePendingPoints.length === 0) return;
+    ctx.save();
+    const exportScale = window.exportScaleFactor || 1;
+    
+    for (const a of angles) {
+        const color = a.color || '#06b6d4';
+        const v = dxfToScreen(a.p2.x, a.p2.y);
+        const p1 = dxfToScreen(a.p1.x, a.p1.y);
+        const p3 = dxfToScreen(a.p3.x, a.p3.y);
+        
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2 * exportScale;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(v.x, v.y);
+        ctx.lineTo(p3.x, p3.y);
+        ctx.stroke();
+        
+        // Draw arc
+        const a1 = Math.atan2(p1.y - v.y, p1.x - v.x);
+        const a3 = Math.atan2(p3.y - v.y, p3.x - v.x);
+        const radius = 30 * exportScale;
+        
+        ctx.beginPath();
+        ctx.arc(v.x, v.y, radius, a1, a3, false);
+        ctx.stroke();
+        
+        // Label
+        let midA = (a1 + a3) / 2;
+        if (Math.abs(a3 - a1) > Math.PI) {
+            midA += Math.PI;
+        }
+        const lx = v.x + Math.cos(midA) * (radius + 15 * exportScale);
+        const ly = v.y + Math.sin(midA) * (radius + 15 * exportScale);
+        
+        ctx.fillStyle = color;
+        ctx.font = `bold ${12 * exportScale}px "Inter", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(a.angle.toFixed(1) + '°', lx, ly);
+    }
+    
+    if (anglePendingPoints.length > 0) {
+        const color = '#f59e0b';
+        const p1 = dxfToScreen(anglePendingPoints[0].x, anglePendingPoints[0].y);
+        drawCross(p1.x, p1.y, 6, color);
+        
+        if (anglePendingPoints.length === 2) {
+            const p2 = dxfToScreen(anglePendingPoints[1].x, anglePendingPoints[1].y);
+            drawCross(p2.x, p2.y, 6, color);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        
+        if (currentMousePt) {
+            const targetPt = currentSnapPoint || currentMousePt;
+            const tp = dxfToScreen(targetPt.x, targetPt.y);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            if (anglePendingPoints.length === 1) {
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(tp.x, tp.y);
+            } else if (anglePendingPoints.length === 2) {
+                const p2 = dxfToScreen(anglePendingPoints[1].x, anglePendingPoints[1].y); // wait, p1 is vertex, p2 is start
+                // Actually p[0] is vertex, p[1] is start.
+                // Wait, in handleMeasureAngleClick:
+                // anglePendingPoints[0] is vertex.
+                // anglePendingPoints[1] is p1.
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(tp.x, tp.y);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
     }
     
     ctx.restore();
@@ -1375,6 +1567,118 @@ function handleMeasureClick(e) {
         saveAnnotations();
     }
     
+    drawDxf();
+}
+
+function calcPolygonArea(pts) {
+    if (pts.length < 3) return 0;
+    let area = 0;
+    for (let i = 0; i < pts.length; i++) {
+        let j = (i + 1) % pts.length;
+        area += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+    }
+    return Math.abs(area) / 2.0;
+}
+
+function formatArea(areaVal) {
+    return areaVal.toFixed(2) + ' ' + currentUnit + '²';
+}
+
+function handleMeasureContClick(e) {
+    const rawPt = screenToDxf(e.clientX, e.clientY);
+    const pt = currentSnapPoint || rawPt;
+    
+    if (!contPending) {
+        contPending = pt;
+        const mv = document.getElementById('measure-value');
+        if (mv) mv.textContent = 'Selecciona sig. punto...';
+    } else {
+        const dx = pt.x - contPending.x;
+        const dy = pt.y - contPending.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        measurements.push({ 
+            p1: { ...contPending }, 
+            p2: { ...pt }, 
+            distance: distance,
+            color: currentMeasureColor
+        });
+        
+        contPending = pt; // chaining
+        saveAnnotations();
+    }
+    drawDxf();
+}
+
+function handleMeasureAreaClick(e) {
+    const rawPt = screenToDxf(e.clientX, e.clientY);
+    const pt = currentSnapPoint || rawPt;
+    
+    if (e.button === 2) {
+        if (areaPendingPoints.length > 2) {
+            const areaVal = calcPolygonArea(areaPendingPoints);
+            areas.push({
+                points: [...areaPendingPoints],
+                area: areaVal,
+                color: currentMeasureColor
+            });
+            saveAnnotations();
+            
+            const av = document.getElementById('area-value');
+            if (av) av.textContent = formatArea(areaVal);
+        }
+        areaPendingPoints = [];
+        drawDxf();
+        return;
+    }
+    
+    areaPendingPoints.push(pt);
+    drawDxf();
+}
+
+function handleMeasureAngleClick(e) {
+    const rawPt = screenToDxf(e.clientX, e.clientY);
+    const pt = currentSnapPoint || rawPt;
+    
+    if (e.button === 2) {
+        anglePendingPoints = [];
+        const av = document.getElementById('angle-value');
+        if (av) av.textContent = '—';
+        drawDxf();
+        return;
+    }
+    
+    anglePendingPoints.push(pt);
+    
+    if (anglePendingPoints.length === 3) {
+        const p1 = anglePendingPoints[1];
+        const p2 = anglePendingPoints[0]; // vertex
+        const p3 = anglePendingPoints[2];
+        
+        const a1 = Math.atan2(p1.y - p2.y, p1.x - p2.x);
+        const a2 = Math.atan2(p3.y - p2.y, p3.x - p2.x);
+        
+        let angleDeg = Math.abs((a2 - a1) * 180 / Math.PI);
+        if (angleDeg > 180) angleDeg = 360 - angleDeg;
+        
+        angles.push({
+            p1, p2, p3,
+            angle: angleDeg,
+            color: currentMeasureColor
+        });
+        
+        const av = document.getElementById('angle-value');
+        if (av) av.textContent = angleDeg.toFixed(1) + '°';
+        
+        anglePendingPoints = [];
+        saveAnnotations();
+    } else {
+        const av = document.getElementById('angle-value');
+        if (av) {
+            if (anglePendingPoints.length === 1) av.textContent = 'Selecciona 2° punto';
+            if (anglePendingPoints.length === 2) av.textContent = 'Selecciona 3° punto';
+        }
+    }
     drawDxf();
 }
 
@@ -1640,6 +1944,34 @@ function handleDeleteClick(e) {
             measurements.splice(i, 1);
             deletedSomething = true;
             break; // Delete one at a time
+        }
+    }
+    }
+    
+    if (!deletedSomething) {
+        for (let i = areas.length - 1; i >= 0; i--) {
+            const a = areas[i];
+            let cx = 0, cy = 0;
+            for (const p of a.points) { cx += p.x; cy += p.y; }
+            cx /= a.points.length; cy /= a.points.length;
+            const cs = dxfToScreen(cx, cy);
+            if ((clickScreen.x - cs.x)**2 + (clickScreen.y - cs.y)**2 < maxScreenDistSq * 3) {
+                areas.splice(i, 1);
+                deletedSomething = true;
+                break;
+            }
+        }
+    }
+    
+    if (!deletedSomething) {
+        for (let i = angles.length - 1; i >= 0; i--) {
+            const a = angles[i];
+            const vs = dxfToScreen(a.p2.x, a.p2.y);
+            if ((clickScreen.x - vs.x)**2 + (clickScreen.y - vs.y)**2 < maxScreenDistSq * 3) {
+                angles.splice(i, 1);
+                deletedSomething = true;
+                break;
+            }
         }
     }
     
@@ -2013,12 +2345,21 @@ function distSquared(v, w) {
 document.getElementById('btn-clear-measures')?.addEventListener('click', () => {
     measurements = [];
     customLines = [];
+    areas = [];
+    angles = [];
     measurePending = null;
+    contPending = null;
+    areaPendingPoints = [];
+    anglePendingPoints = [];
     linePending = null;
     virtualCouplings.length = 0; // Clear couplings as well
     saveAnnotations();
     const infoMeasure = document.getElementById('info-measure');
     if (infoMeasure) infoMeasure.style.display = 'none';
+    const infoArea = document.getElementById('info-area');
+    if (infoArea) infoArea.style.display = 'none';
+    const infoAngle = document.getElementById('info-angle');
+    if (infoAngle) infoAngle.style.display = 'none';
     drawDxf();
 });
 
@@ -2100,6 +2441,8 @@ function saveAnnotations() {
         measurements: measurements.map(m => ({
             p1: m.p1, p2: m.p2, distance: m.distance, color: m.color
         })),
+        areas: areas,
+        angles: angles,
         customLines: customLines,
         couplings: virtualCouplings,
         unit: currentUnit,
@@ -2127,6 +2470,8 @@ function loadAnnotations() {
         if (saved) {
             const data = JSON.parse(saved);
             if (data.measurements) measurements = data.measurements;
+            if (data.areas) areas = data.areas;
+            if (data.angles) angles = data.angles;
             if (data.customLines) customLines = data.customLines;
             if (data.couplings) {
                 virtualCouplings.length = 0;
@@ -2253,9 +2598,34 @@ canvas.addEventListener('mousedown', (e) => {
         drawDxf();
         return;
     }
+    if (currentTool === 'measure-cont' && e.button === 2) {
+        contPending = null;
+        drawDxf();
+        return;
+    }
+    if (currentTool === 'measure-area' && e.button === 2) {
+        handleMeasureAreaClick(e);
+        return;
+    }
+    if (currentTool === 'measure-angle' && e.button === 2) {
+        handleMeasureAngleClick(e);
+        return;
+    }
 
     if (currentTool === 'measure') {
         handleMeasureClick(e);
+        return;
+    }
+    if (currentTool === 'measure-cont') {
+        handleMeasureContClick(e);
+        return;
+    }
+    if (currentTool === 'measure-area') {
+        handleMeasureAreaClick(e);
+        return;
+    }
+    if (currentTool === 'measure-angle') {
+        handleMeasureAngleClick(e);
         return;
     }
     if (currentTool === 'line') {
