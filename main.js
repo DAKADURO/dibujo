@@ -1946,7 +1946,6 @@ function handleDeleteClick(e) {
             break; // Delete one at a time
         }
     }
-    }
     
     if (!deletedSomething) {
         for (let i = areas.length - 1; i >= 0; i--) {
