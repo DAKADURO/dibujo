@@ -1913,10 +1913,6 @@ function commitAssignProp() {
     }
     saveAnnotations();
     drawDxf();
-    // Close the floating panel automatically
-    const panel = document.getElementById('floating-assign-props');
-    if (panel) panel.style.display = 'none';
-    assignPropPendingData = null;
 }
 
 function drawAssignedLines() {
@@ -3137,8 +3133,16 @@ canvas.addEventListener('mousedown', (e) => {
         return;
     }
     if (currentTool === 'assign-prop') {
-        // Single click in assign mode = pan (do nothing special, falls through to pan logic below)
-        // Double-click is handled separately via dblclick event
+        const assignPanel = document.getElementById('floating-assign-props');
+        if (assignPanel && assignPanel.style.display !== 'none') {
+            assignPanel.style.display = 'none';
+            assignPropPendingData = null;
+        }
+        
+        // Single click in assign mode also lets you pan the camera
+        viewState.isDragging = true;
+        viewState.lastX = e.clientX;
+        viewState.lastY = e.clientY;
         return;
     }
     if (currentTool === 'line') {
