@@ -340,6 +340,15 @@ document.getElementById('btn-export-dxf').addEventListener('click', () => {
     exportToDxf();
 });
 
+// ─── Toggle Cursors ───
+document.getElementById('toggle-cursors')?.addEventListener('change', (e) => {
+    const container = document.getElementById('cursors-container');
+    if (container) {
+        container.style.opacity = e.target.checked ? '1' : '0';
+        container.style.pointerEvents = 'none'; // Ensure it stays unclickable
+    }
+});
+
 // (dxfHandleCounter is now managed inside buildDxfEntityHelpers per-export)
 
 function hexToAci(hex) {
@@ -3002,7 +3011,8 @@ canvas.addEventListener('mousedown', (e) => {
         return;
     }
     if (currentTool === 'assign-prop') {
-        handleAssignClick(e);
+        // Single click in assign mode = pan (do nothing special, falls through to pan logic below)
+        // Double-click is handled separately via dblclick event
         return;
     }
     if (currentTool === 'line') {
@@ -3095,6 +3105,13 @@ canvas.addEventListener('mousedown', (e) => {
         viewState.isDragging = true;
         viewState.lastX = e.clientX;
         viewState.lastY = e.clientY;
+    }
+});
+
+// ─── Double-click: Assign properties to DXF line ───
+canvas.addEventListener('dblclick', (e) => {
+    if (currentTool === 'assign-prop') {
+        handleAssignClick(e);
     }
 });
 
