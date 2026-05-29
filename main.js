@@ -113,6 +113,41 @@ const CATALOG_AIRPIPE = {
         { code: 'A812', d1: '200mm (8")', d2: '100mm (4")', label: 'A812: 200mm (8") x 100mm (4")' },
         { code: 'A912', d1: '200mm (8")', d2: '150mm (6")', label: 'A912: 200mm (8") x 150mm (6")' }
     ],
+    'quickdrop': [
+        // Straight Quick Drop
+        { code: '2110', d1: '25mm (1")', d2: '20mm (3/4")', label: '2110: 25mm (1") x 20mm (3/4") (Str)' },
+        { code: '2210', d1: '25mm (1")', d2: '25mm (1")', label: '2210: 25mm (1") x 25mm (1") (Str)' },
+        { code: '4110', d1: '40mm (1 1/2")', d2: '20mm (3/4")', label: '4110: 40mm (1 1/2") x 20mm (3/4") (Str)' },
+        { code: '4210', d1: '40mm (1 1/2")', d2: '25mm (1")', label: '4210: 40mm (1 1/2") x 25mm (1") (Str)' },
+        { code: '5110', d1: '50mm (2")', d2: '20mm (3/4")', label: '5110: 50mm (2") x 20mm (3/4") (Str)' },
+        { code: '5210', d1: '50mm (2")', d2: '25mm (1")', label: '5210: 50mm (2") x 25mm (1") (Str)' },
+        { code: '6110', d1: '63mm (2 1/2")', d2: '20mm (3/4")', label: '6110: 63mm (2 1/2") x 20mm (3/4") (Str)' },
+        { code: '6210', d1: '63mm (2 1/2")', d2: '25mm (1")', label: '6210: 63mm (2 1/2") x 25mm (1") (Str)' },
+        { code: '7110', d1: '80mm (3")', d2: '20mm (3/4")', label: '7110: 80mm (3") x 20mm (3/4") (Str)' },
+        { code: '7210', d1: '80mm (3")', d2: '25mm (1")', label: '7210: 80mm (3") x 25mm (1") (Str)' },
+        { code: '8110', d1: '100mm (4")', d2: '20mm (3/4")', label: '8110: 100mm (4") x 20mm (3/4") (Str)' },
+        { code: '8210', d1: '100mm (4")', d2: '25mm (1")', label: '8210: 100mm (4") x 25mm (1") (Str)' },
+        { code: '9110', d1: '150mm (6")', d2: '20mm (3/4")', label: '9110: 150mm (6") x 20mm (3/4") (Str)' },
+        { code: '9210', d1: '150mm (6")', d2: '25mm (1")', label: '9210: 150mm (6") x 25mm (1") (Str)' },
+        { code: 'A210', d1: '200mm (8")', d2: '25mm (1")', label: 'A210: 200mm (8") x 25mm (1") (Str)' },
+        { code: '8410', d1: '100mm (4")', d2: '40mm (1 1/2")', label: '8410: 100mm (4") x 40mm (1 1/2") (Str)' },
+        { code: '9410', d1: '150mm (6")', d2: '40mm (1 1/2")', label: '9410: 150mm (6") x 40mm (1 1/2") (Str)' },
+        { code: '9510', d1: '150mm (6")', d2: '50mm (2")', label: '9510: 150mm (6") x 50mm (2") (Str)' },
+        { code: 'A410', d1: '200mm (8")', d2: '50mm (2")', label: 'A410: 200mm (8") x 50mm (2") (Str)' },
+        { code: 'A510', d1: '200mm (8")', d2: '50mm (2")', label: 'A510: 200mm (8") x 50mm (2") (Str)' },
+        // Female Threaded Quick Drop
+        { code: '2011', d1: '25mm (1")', d2: '1/2"', label: '2011: 25mm (1") x 1/2" (NPT Hembra)' },
+        { code: '4011', d1: '40mm (1 1/2")', d2: '1/2"', label: '4011: 40mm (1 1/2") x 1/2" (NPT Hembra)' },
+        { code: '4111', d1: '40mm (1 1/2")', d2: '3/4"', label: '4111: 40mm (1 1/2") x 3/4" (NPT Hembra)' },
+        { code: '5011', d1: '50mm (2")', d2: '1/2"', label: '5011: 50mm (2") x 1/2" (NPT Hembra)' },
+        { code: '5111', d1: '50mm (2")', d2: '3/4"', label: '5111: 50mm (2") x 3/4" (NPT Hembra)' },
+        { code: '6011', d1: '63mm (2 1/2")', d2: '1/2"', label: '6011: 63mm (2 1/2") x 1/2" (NPT Hembra)' },
+        { code: '6111', d1: '63mm (2 1/2")', d2: '3/4"', label: '6111: 63mm (2 1/2") x 3/4" (NPT Hembra)' },
+        { code: '7011', d1: '80mm (3")', d2: '1/2"', label: '7011: 80mm (3") x 1/2" (NPT Hembra)' },
+        { code: '7111', d1: '80mm (3")', d2: '3/4"', label: '7111: 80mm (3") x 3/4" (NPT Hembra)' },
+        { code: '8011', d1: '100mm (4")', d2: '3/4"', label: '8011: 100mm (4") x 3/4" (NPT Hembra)' },
+        { code: '9011', d1: '150mm (6")', d2: '3/4"', label: '9011: 150mm (6") x 3/4" (NPT Hembra)' }
+    ],
     'standard': [
         { d1: '20mm (3/4")', label: '20mm (3/4")' },
         { d1: '25mm (1")', label: '25mm (1")' },
@@ -1468,7 +1503,9 @@ function getSymbolConnectionPortsDxf(sym) {
     }
 
     switch (sym.type) {
-        case 'tee':      return [portAt(-s, 0), portAt(s, 0), portAt(0, s)];
+        case 'tee':
+        case 'quickdrop':
+            return [portAt(-s, 0), portAt(s, 0), portAt(0, s)];
         case 'tee-lat':  {
             const d = s * 0.7071; // 45 deg branch
             return [portAt(-s, 0), portAt(s, 0), portAt(d, -d)];
@@ -2003,6 +2040,8 @@ function updateSymbolPropertiesUI(x, y) {
                     ...CATALOG_AIRPIPE['standard'].map(o => ({ ...o, label: `Igual ${o.label}` })),
                     ...CATALOG_AIRPIPE['tee-red']
                 ];
+            } else if (sym.type === 'quickdrop') {
+                options = CATALOG_AIRPIPE['quickdrop'];
             } else {
                 options = CATALOG_AIRPIPE['standard'];
             }
@@ -2428,6 +2467,9 @@ function drawSymbols() {
         } else if (sym.type === 'tapon') {
             ctx.moveTo(-s, 0); ctx.lineTo(0, 0);    // tube reaching end
             ctx.moveTo(0, -s * 0.7); ctx.lineTo(0, s * 0.7); // vertical cap
+        } else if (sym.type === 'quickdrop') {
+            ctx.arc(0, 0, s * 0.4, 0, Math.PI * 2); // circle on main line
+            ctx.moveTo(0, s * 0.4); ctx.lineTo(0, s); // drop
         }
         ctx.stroke();
         
