@@ -1846,15 +1846,29 @@ function drawAssignedLines() {
         
         // Draw label on first segment
         if (al.diameter) {
-            const midX = (al.points[0].x + al.points[1].x) / 2;
-            const midY = (al.points[0].y + al.points[1].y) / 2;
-            const smid = dxfToScreen(midX, midY);
+            const sp1 = dxfToScreen(al.points[1].x, al.points[1].y);
+            const screenDist = Math.hypot(sp1.x - sp0.x, sp1.y - sp0.y);
             
-            ctx.fillStyle = al.color;
-            ctx.font = 'bold 12px Inter';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            ctx.fillText(al.diameter, smid.x, smid.y - 6);
+            // Hide label if the segment is too small on screen
+            if (screenDist > 25) {
+                const midX = (al.points[0].x + al.points[1].x) / 2;
+                const midY = (al.points[0].y + al.points[1].y) / 2;
+                const smid = dxfToScreen(midX, midY);
+                
+                // Scale font based on zoom, with min/max bounds
+                let dFontSize = 12;
+                if (viewState.zoom < 1.0) {
+                    dFontSize = Math.max(6, 12 * viewState.zoom);
+                } else if (viewState.zoom > 1.0) {
+                    dFontSize = Math.min(24, 12 * viewState.zoom);
+                }
+                
+                ctx.fillStyle = al.color;
+                ctx.font = `bold ${dFontSize}px Inter`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(al.diameter, smid.x, smid.y - (dFontSize/2));
+            }
         }
     });
 }
