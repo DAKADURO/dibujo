@@ -3094,8 +3094,8 @@ canvas.addEventListener('mousedown', (e) => {
         }
         return;
     }
-    // ─── Symbol move: select / start drag (also works in Pan mode) ───
-    if (currentTool === 'pan' || currentTool === 'sym-move') {
+    // ─── Symbol move: select / start drag (only in sym-move mode) ───
+    if (currentTool === 'sym-move') {
         const rect = canvas.getBoundingClientRect();
         const cx = e.clientX - rect.left;
         const cy = e.clientY - rect.top;
@@ -3117,7 +3117,7 @@ canvas.addEventListener('mousedown', (e) => {
             selectedSymbolIndex = -1;
             updateSymbolPropertiesUI();
             drawDxf();
-            if (currentTool === 'sym-move') return; // Do nothing else
+            return; // Do nothing else
         }
     }
     
@@ -3128,10 +3128,28 @@ canvas.addEventListener('mousedown', (e) => {
     }
 });
 
-// ─── Double-click: Assign properties to DXF line ───
+// ─── Double-click: Assign properties to DXF line / Symbol properties ───
 canvas.addEventListener('dblclick', (e) => {
     if (currentTool === 'assign-prop') {
         handleAssignClick(e);
+    } else if (currentTool === 'pan') {
+        const rect = canvas.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        const hit = findSymbolAt(cx, cy);
+        
+        if (hit >= 0) {
+            pipingSymbols.forEach(s => s.selected = false);
+            selectedSymbolIndex = hit;
+            pipingSymbols[hit].selected = true;
+            updateSymbolPropertiesUI(e.clientX, e.clientY);
+            drawDxf();
+        } else {
+            pipingSymbols.forEach(s => s.selected = false);
+            selectedSymbolIndex = -1;
+            updateSymbolPropertiesUI();
+            drawDxf();
+        }
     }
 });
 
