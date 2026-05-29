@@ -1,6 +1,34 @@
 import DxfParser from 'dxf-parser';
 import { setupAnnotations, resizeAnnotations, setToolChangeCallback, setMode, getFabricObjects } from './annotations.js';
 import { generateBOM, exportBOMtoCSV } from './bom.js';
+import { db } from './firebase.js';
+import { ref as dbRef, set, onValue, onDisconnect, remove } from 'firebase/database';
+
+let userId = localStorage.getItem('dxf_userid') || Math.random().toString(36).substring(2, 9);
+localStorage.setItem('dxf_userid', userId);
+let userName = localStorage.getItem('dxf_username') || '';
+let userColor = `hsl(${Math.floor(Math.random() * 360)}, 80%, 60%)`;
+
+let roomId = new URLSearchParams(window.location.search).get('room');
+if (!roomId) {
+    roomId = Math.random().toString(36).substring(2, 9);
+    try {
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set('room', roomId);
+        window.history.replaceState({}, '', newUrl);
+    } catch(e) {}
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const roomEl = document.getElementById('collab-room');
+    if (roomEl) {
+        roomEl.textContent = roomId;
+        roomEl.addEventListener('click', () => {
+            navigator.clipboard.writeText(window.location.href).catch(() => {});
+            alert('Enlace de sala copiado: ' + window.location.href);
+        });
+    }
+});
 
 const dxfInput = document.getElementById('dxf-input');
 const canvas = document.getElementById('dxf-canvas');
@@ -35,7 +63,9 @@ let contPending = null;
 let areaPendingPoints = [];
 let anglePendingPoints = [];
 let linePending = null;
-let currentTool = 'pan'; // pan, measure, measure-cont, measure-area, measure-angle, cople, rect, text, sum, draw, delete, sym-*
+let assignedLines = [];
+let assignPropPendingData = null;
+let currentTool = 'pan'; // pan, measure, measure-cont, measure-area, measure-angle, cople, rect, text, sum, draw, delete, sym-*, assign-prop
 let currentMousePt = { x: 0, y: 0 };
 let currentSnapPoint = null;
 
@@ -157,7 +187,7 @@ setToolChangeCallback((tool) => {
     
     const infoSum = document.getElementById('info-sum');
     
-    if (tool === 'cople' || tool === 'delete' || tool === 'sum' || (tool.startsWith('sym-') && tool !== 'sym-move') || tool === 'line' || tool.startsWith('measure')) {
+    if (tool === 'assign-prop' || tool === 'cople' || tool === 'delete' || tool === 'sum' || (tool.startsWith('sym-') && tool !== 'sym-move') || tool === 'line' || tool.startsWith('measure')) {
         container.classList.add('measure-mode'); // Use crosshair
         if (tool === 'cople' && infoCople) infoCople.style.display = 'flex';
         else if (infoCople) infoCople.style.display = 'none';
@@ -185,17 +215,14 @@ setToolChangeCallback((tool) => {
     }
 });
 
-// ─── File Upload ───
-dxfInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    currentFileName = file.name;
+// ─── File Upload & Storage ───
+function processDxfBuffer(buffer, fileName) {
+    currentFileName = fileName;
     loading.classList.remove('hidden');
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        const buffer = event.target.result;
+    loading.querySelector('p').textContent = 'Procesando DXF...';
+    
+    // Slight delay to allow UI to update
+    setTimeout(() => {
         rawDxfBytes = new Uint8Array(buffer);
         
         // Convert to 1-to-1 string without corrupting binary data for export
@@ -247,6 +274,7 @@ dxfInput.addEventListener('change', (e) => {
             areas = [];
             angles = [];
             virtualCouplings.length = 0;
+            assignedLines = [];
             measurePending = null;
             contPending = null;
             areaPendingPoints = [];
@@ -257,6 +285,9 @@ dxfInput.addEventListener('change', (e) => {
             // Try to load saved annotations for this file
             loadAnnotations();
             
+            // Listen to firebase for this file in this room
+            setupFirebaseSync();
+            
             drawDxf();
         } catch (err) {
             console.error('Error parsing DXF', err);
@@ -264,8 +295,40 @@ dxfInput.addEventListener('change', (e) => {
         } finally {
             loading.classList.add('hidden');
         }
+    }, 50);
+}
+
+dxfInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    loading.classList.remove('hidden');
+    loading.querySelector('p').textContent = 'Leyendo archivo local...';
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+        const buffer = event.target.result;
+        processDxfBuffer(buffer, file.name);
     };
     reader.readAsArrayBuffer(file);
+});
+
+// Auto-download on join
+document.addEventListener('DOMContentLoaded', () => {
+    if (!userName) {
+        document.getElementById('name-modal').classList.remove('hidden');
+    }
+    const btnNameSave = document.getElementById('btn-name-save');
+    if (btnNameSave) {
+        btnNameSave.addEventListener('click', () => {
+            const input = document.getElementById('name-input').value.trim();
+            if (input) {
+                userName = input;
+                localStorage.setItem('dxf_username', userName);
+                document.getElementById('name-modal').classList.add('hidden');
+            }
+        });
+    }
 });
 
 // ─── DXF Export Logic ───
@@ -394,7 +457,7 @@ function buildDxfEntityHelpers() {
         s += ` 20${nl}${y1.toFixed(6)}${nl}`;
         s += ` 30${nl}0.0${nl}`;
         s += ` 11${nl}${x2.toFixed(6)}${nl}`;
-        s += ` 21${nl}${y2.toFixed(6)}${nl}`;
+        s += ` 21${nl}${y1.toFixed(6)}${nl}`;
         s += ` 31${nl}0.0${nl}`;
         return s;
     }
@@ -836,13 +899,12 @@ function drawDxf() {
     // Draw overlays (in screen coords)
     drawSnapIndicator();
     drawCustomLines();
+    drawAssignedLines();  // ← assigned lines FIRST (below everything else)
     drawCouplings();
-    drawSymbols();
     drawMeasurements();
     drawAreas();
     drawAngles();
-    drawSymbols();
-    drawSnapIndicator();
+    drawSymbols();        // ← symbols LAST (always on top)
     
     // Sync Fabric.js canvas (for draw/rect/text tools)
     if (window.syncFabricSymbols) {
@@ -1723,6 +1785,132 @@ function drawCustomLines() {
     ctx.restore();
 }
 
+// ─── Assign Prop Helper (global scope) ───────────────────────────────────────
+function commitAssignProp() {
+    if (!assignPropPendingData) return;
+    const assignSelect = document.getElementById('assign-part');
+    const diameter = assignSelect ? assignSelect.value : 'Ø 25 mm (1")'; 
+    const colorEl = document.getElementById('assign-color');
+    const color = colorEl ? colorEl.value : '#06b6d4';
+    
+    const existing = assignedLines.find(al => al.id === assignPropPendingData.id);
+    if (existing) {
+        existing.diameter = diameter;
+        existing.color = color;
+    } else {
+        assignedLines.push({
+            id: assignPropPendingData.id,
+            points: assignPropPendingData.points,
+            diameter: diameter,
+            color: color
+        });
+    }
+    saveAnnotations();
+    drawDxf();
+    // Close the floating panel automatically
+    const panel = document.getElementById('floating-assign-props');
+    if (panel) panel.style.display = 'none';
+    assignPropPendingData = null;
+}
+
+function drawAssignedLines() {
+    assignedLines.forEach(al => {
+        if (!al.points || al.points.length < 2) return;
+        
+        ctx.beginPath();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = al.color;
+        
+        const sp0 = dxfToScreen(al.points[0].x, al.points[0].y);
+        ctx.moveTo(sp0.x, sp0.y);
+        for (let i = 1; i < al.points.length; i++) {
+            const sp = dxfToScreen(al.points[i].x, al.points[i].y);
+            ctx.lineTo(sp.x, sp.y);
+        }
+        ctx.stroke();
+        
+        // Draw label on first segment
+        if (al.diameter) {
+            const midX = (al.points[0].x + al.points[1].x) / 2;
+            const midY = (al.points[0].y + al.points[1].y) / 2;
+            const smid = dxfToScreen(midX, midY);
+            
+            ctx.fillStyle = al.color;
+            ctx.font = 'bold 12px Inter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(al.diameter, smid.x, smid.y - 6);
+        }
+    });
+}
+
+function handleAssignClick(e) {
+    if (!dxfData) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const canvasX = e.clientX - rect.left;
+    const canvasY = e.clientY - rect.top;
+    const pt = canvasToDxf(canvasX, canvasY);
+    
+    const MAX_SCREEN_DIST = 12; // pixels tolerance
+    const maxScreenDistSq = MAX_SCREEN_DIST * MAX_SCREEN_DIST;
+    
+    let closest = null;
+    let closestDistSq = Infinity;
+    
+    for (const ent of dxfData.entities) {
+        if (ent.type !== 'LINE' && ent.type !== 'LWPOLYLINE' && ent.type !== 'POLYLINE') continue;
+        const pts = getEntityPoints(ent);
+        if (!pts || pts.length < 2) continue;
+        
+        for (let i = 0; i < pts.length - 1; i++) {
+            const p1 = pts[i];
+            const p2 = pts[i+1];
+            // Project closest point on segment to DXF coords
+            const proj = projectPointOnSegment(pt, p1, p2);
+            // Convert to canvas coords and compare with mouse canvas pos
+            const sproj = dxfToScreen(proj.x, proj.y); // canvas-relative
+            const smouse = { x: canvasX, y: canvasY }; // canvas-relative
+            const dSq = distSquared(smouse, sproj);
+            
+            if (dSq < maxScreenDistSq && dSq < closestDistSq) {
+                closestDistSq = dSq;
+                closest = { ent, p1, p2, points: pts };
+            }
+        }
+    }
+    
+    if (closest) {
+        const id = closest.ent.handle || ("L_" + Math.round(closest.p1.x) + "_" + Math.round(closest.p1.y) + "_" + Math.round(closest.p2.x) + "_" + Math.round(closest.p2.y));
+        assignPropPendingData = { id, points: closest.points };
+        
+        const panel = document.getElementById('floating-assign-props');
+        
+        // Populate existing values if already assigned
+        const existing = assignedLines.find(al => al.id === id);
+        if (existing) {
+            const assignSelect = document.getElementById('assign-part');
+            if (assignSelect) assignSelect.value = existing.diameter;
+            const colorEl = document.getElementById('assign-color');
+            if (colorEl) colorEl.value = existing.color;
+        } else {
+            // Commit with defaults immediately to show selection
+            commitAssignProp();
+        }
+        
+        if (panel) {
+            panel.style.display = 'block';
+            panel.style.left = `${e.clientX + 10}px`;
+            panel.style.top = `${e.clientY + 10}px`;
+        }
+    } else {
+        // Clicked on empty space, hide panel
+        const panel = document.getElementById('floating-assign-props');
+        if (panel) panel.style.display = 'none';
+        assignPropPendingData = null;
+    }
+}
+
 function handleLineClick(e) {
     if (!dxfData) return;
     
@@ -2024,7 +2212,25 @@ function handleDeleteClick(e) {
     }
     
     if (!deletedSomething) {
-        // 5. Check Fabric.js annotations (Freehand lines, Rectangles, Text)
+        // 5. Check assigned lines
+        for (let i = 0; i < assignedLines.length; i++) {
+            const al = assignedLines[i];
+            for (let j = 0; j < al.points.length - 1; j++) {
+                const sp1 = window.dxfToScreen(al.points[j].x, al.points[j].y);
+                const sp2 = window.dxfToScreen(al.points[j+1].x, al.points[j+1].y);
+                if (distToSegmentSquaredScreen(clickScreen, sp1, sp2) < 25) {
+                    assignedLines.splice(i, 1);
+                    saveAnnotations();
+                    drawDxf();
+                    deletedSomething = true;
+                    return;
+                }
+            }
+        }
+    }
+    
+    if (!deletedSomething) {
+        // 6. Check Fabric.js annotations (Freehand lines, Rectangles, Text)
         if (window.deleteFabricObjectAtEvent) {
             deletedSomething = window.deleteFabricObjectAtEvent(e);
         }
@@ -2403,6 +2609,23 @@ document.getElementById('unit-select')?.addEventListener('change', (e) => {
     requestDrawDxf();
 });
 
+// ─── Assign Prop Panel Init ───
+(function initAssignPanel() {
+    const assignSelect = document.getElementById('assign-part');
+    if (!assignSelect) return;
+    
+    // Populate dropdown with standard pipe diameters
+    CATALOG_AIRPIPE['standard'].forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.label;
+        opt.textContent = item.label;
+        assignSelect.appendChild(opt);
+    });
+    
+    assignSelect.addEventListener('change', commitAssignProp);
+    document.getElementById('assign-color')?.addEventListener('input', commitAssignProp);
+})();
+
 function updateCouplingDefault() {
     const input = document.getElementById('cople-dist');
     if (!input) return;
@@ -2433,9 +2656,144 @@ function detectUnits() {
     return 'mm';
 }
 
-// ─── Persistence Logic ───
+let isRemoteUpdate = false;
+let lastUpdateTime = 0;
+let unsubscribeFirebase = null;
+
+function setupFirebaseSync() {
+    if (!currentFileName || !roomId) return;
+    
+    const safeName = currentFileName.replace(/[\.\#\$\[\]]/g, '_');
+    const roomRef = dbRef(db, `rooms/${roomId}/${safeName}`);
+    
+    if (unsubscribeFirebase) unsubscribeFirebase();
+    
+    const dot = document.getElementById('collab-dot');
+    const text = document.getElementById('collab-text');
+    if (dot) dot.style.background = '#f59e0b';
+    if (text) text.textContent = 'Conectando...';
+    
+    unsubscribeFirebase = onValue(roomRef, (snapshot) => {
+        const data = snapshot.val();
+        if (dot) dot.style.background = '#10b981';
+        if (text) text.textContent = data ? 'Sincronizado' : 'Sala vacía';
+        
+        if (data && data.updatedAt && data.updatedAt > lastUpdateTime) {
+            isRemoteUpdate = true;
+            lastUpdateTime = data.updatedAt;
+            
+            if (data.measurements) measurements = data.measurements; else measurements = [];
+            if (data.areas) areas = data.areas; else areas = [];
+            if (data.angles) angles = data.angles; else angles = [];
+            if (data.customLines) customLines = data.customLines; else customLines = [];
+            
+            virtualCouplings.length = 0;
+            if (data.couplings) virtualCouplings.push(...data.couplings);
+            
+            if (data.unit) {
+                currentUnit = data.unit;
+                const unitSelect = document.getElementById('unit-select');
+                if (unitSelect) unitSelect.value = currentUnit;
+                updateCouplingDefault();
+            }
+            
+            pipingSymbols.length = 0;
+            if (data.symbols) data.symbols.forEach(s => pipingSymbols.push({ ...s, selected: false }));
+            if (data.assignedLines) assignedLines = data.assignedLines; else assignedLines = [];
+            
+            if (window.loadFabricState && data.fabricState) {
+                window.loadFabricState(data.fabricState);
+            }
+            
+            drawDxf();
+            
+            // Also save locally just in case
+            try {
+                localStorage.setItem(`dxf_annotations_${currentFileName}`, JSON.stringify(data));
+            } catch(e) {}
+            
+            isRemoteUpdate = false;
+        }
+    });
+
+    // Cursors Sync
+    setupCursorSync();
+}
+
+let lastCursorSend = 0;
+function updateRemoteCursor(pt) {
+    const now = Date.now();
+    if (now - lastCursorSend < 100) return; // Debounce 10fps
+    lastCursorSend = now;
+    
+    set(dbRef(db, `rooms/${roomId}/cursors/${userId}`), {
+        x: pt.x,
+        y: pt.y,
+        name: userName || 'Anónimo',
+        color: userColor,
+        t: Date.now()
+    }).catch(()=>{});
+}
+
+function setupCursorSync() {
+    const cursorsRef = dbRef(db, `rooms/${roomId}/cursors`);
+    
+    // Clear our cursor on disconnect
+    onDisconnect(dbRef(db, `rooms/${roomId}/cursors/${userId}`)).remove();
+
+    onValue(cursorsRef, (snapshot) => {
+        const cursors = snapshot.val() || {};
+        const container = document.getElementById('cursors-container');
+        if (!container || !window.dxfToScreen) return;
+        
+        // Remove old cursors from DOM
+        Array.from(container.children).forEach(child => {
+            const id = child.getAttribute('data-id');
+            if (!cursors[id] || id === userId || Date.now() - cursors[id].t > 15000) {
+                child.remove();
+            }
+        });
+        
+        // Add or update active cursors
+        Object.keys(cursors).forEach(id => {
+            if (id === userId) return;
+            const c = cursors[id];
+            if (Date.now() - c.t > 15000) return; // Ignore inactive
+            
+            const sp = window.dxfToScreen(c.x, c.y);
+            let el = document.getElementById(`cursor-${id}`);
+            
+            if (!el) {
+                el = document.createElement('div');
+                el.id = `cursor-${id}`;
+                el.className = 'collab-cursor';
+                el.setAttribute('data-id', id);
+                el.style.color = c.color;
+                
+                el.innerHTML = `
+                    <svg class="collab-cursor-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+                    </svg>
+                    <div class="collab-cursor-label">${c.name}</div>
+                `;
+                container.appendChild(el);
+            } else {
+                // Update name/color if changed
+                el.style.color = c.color;
+                const label = el.querySelector('.collab-cursor-label');
+                if (label.textContent !== c.name) label.textContent = c.name;
+            }
+            
+            el.style.left = `${sp.x}px`;
+            el.style.top = `${sp.y}px`;
+        });
+    });
+}
+
+
 function saveAnnotations() {
-    if (!currentFileName) return;
+    if (!currentFileName || isRemoteUpdate) return;
+    
     const data = {
         measurements: measurements.map(m => ({
             p1: m.p1, p2: m.p2, distance: m.distance, color: m.color
@@ -2444,21 +2802,33 @@ function saveAnnotations() {
         angles: angles,
         customLines: customLines,
         couplings: virtualCouplings,
+        assignedLines: assignedLines,
         unit: currentUnit,
         symbols: pipingSymbols.map(s => ({ 
             type: s.type, 
             dxfX: s.dxfX, 
             dxfY: s.dxfY, 
             angle: s.angle || 0,
-            d1: s.d1,
-            d2: s.d2,
-            color: s.color
-        }))
+            d1: s.d1 || null,
+            d2: s.d2 || null,
+            code: s.code || null,
+            color: s.color || null
+        })),
+        fabricState: window.getFabricState ? window.getFabricState() : null,
+        updatedAt: Date.now()
     };
+    
+    lastUpdateTime = data.updatedAt;
+    
     try {
         localStorage.setItem(`dxf_annotations_${currentFileName}`, JSON.stringify(data));
     } catch(e) {
         console.warn('Could not save to localStorage', e);
+    }
+    
+    if (roomId) {
+        const safeName = currentFileName.replace(/[\.\#\$\[\]]/g, '_');
+        set(dbRef(db, `rooms/${roomId}/${safeName}`), data).catch(console.error);
     }
 }
 
@@ -2472,6 +2842,7 @@ function loadAnnotations() {
             if (data.areas) areas = data.areas;
             if (data.angles) angles = data.angles;
             if (data.customLines) customLines = data.customLines;
+            if (data.assignedLines) assignedLines = data.assignedLines;
             if (data.couplings) {
                 virtualCouplings.length = 0;
                 virtualCouplings.push(...data.couplings);
@@ -2485,6 +2856,9 @@ function loadAnnotations() {
             if (data.symbols) {
                 pipingSymbols.length = 0;
                 data.symbols.forEach(s => pipingSymbols.push({ ...s, selected: false }));
+            }
+            if (window.loadFabricState && data.fabricState) {
+                window.loadFabricState(data.fabricState);
             }
         }
     } catch(e) {
@@ -2502,7 +2876,7 @@ document.getElementById('btn-bom')?.addEventListener('click', () => {
         return;
     }
     
-    bomData = generateBOM(dxfData, virtualCouplings, pipingSymbols, customLines);
+    bomData = generateBOM(dxfData, virtualCouplings, pipingSymbols, customLines, assignedLines);
     if (!bomData || bomData.summary.length === 0) {
         alert('No se encontraron elementos de tubería en el archivo.');
         return;
@@ -2625,6 +2999,10 @@ canvas.addEventListener('mousedown', (e) => {
     }
     if (currentTool === 'measure-angle') {
         handleMeasureAngleClick(e);
+        return;
+    }
+    if (currentTool === 'assign-prop') {
+        handleAssignClick(e);
         return;
     }
     if (currentTool === 'line') {
@@ -2773,8 +3151,13 @@ canvas.addEventListener('mousemove', (e) => {
                 canvas.style.cursor = 'grab'; // Default pan cursor
             }
         }
+        
+        // Sync Cursor
+        if (roomId && !viewState.isDragging) {
+            updateRemoteCursor(pt);
+        }
     }
-    
+
     if (viewState.isDragging) {
         const dx = e.clientX - viewState.lastX;
         const dy = e.clientY - viewState.lastY;
@@ -2826,6 +3209,10 @@ window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         linePending = null;
         measurePending = null;
+        // Cancel assign-prop panel
+        const assignPanel = document.getElementById('floating-assign-props');
+        if (assignPanel) assignPanel.style.display = 'none';
+        assignPropPendingData = null;
         if (selectedSymbolIndex >= 0) {
             pipingSymbols[selectedSymbolIndex].selected = false;
             selectedSymbolIndex = -1;
@@ -2898,9 +3285,10 @@ document.getElementById('btn-save-project')?.addEventListener('click', () => {
         areas,
         angles,
         couplings: virtualCouplings,
+        assignedLines: assignedLines,
         unit: currentUnit,
         symbols: pipingSymbols,
-        version: "1.0"
+        version: "1.1"
     };
     
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -2922,32 +3310,43 @@ document.getElementById('project-input')?.addEventListener('change', (e) => {
     reader.onload = (evt) => {
         try {
             const data = JSON.parse(evt.target.result);
-            if (data.measurements) measurements = data.measurements;
-            if (data.customLines) customLines = data.customLines;
-            if (data.areas) areas = data.areas;
-            if (data.angles) angles = data.angles;
-            if (data.couplings) {
+            
+            if (!data || typeof data !== 'object') throw new Error('JSON inválido');
+            
+            if (Array.isArray(data.measurements)) measurements = data.measurements;
+            if (Array.isArray(data.customLines)) customLines = data.customLines;
+            if (Array.isArray(data.areas)) areas = data.areas;
+            if (Array.isArray(data.angles)) angles = data.angles;
+            if (Array.isArray(data.assignedLines)) assignedLines = data.assignedLines;
+            if (Array.isArray(data.couplings)) {
                 virtualCouplings.length = 0;
                 virtualCouplings.push(...data.couplings);
             }
-            if (data.symbols) {
+            if (Array.isArray(data.symbols)) {
                 pipingSymbols.length = 0;
-                pipingSymbols.push(...data.symbols);
+                data.symbols.forEach(s => {
+                    if (s && typeof s === 'object') {
+                        pipingSymbols.push({
+                            type: s.type, dxfX: s.dxfX, dxfY: s.dxfY,
+                            angle: s.angle || 0, d1: s.d1, d2: s.d2,
+                            code: s.code, color: s.color, selected: false
+                        });
+                    }
+                });
             }
-            if (data.unit) {
+            if (data.unit && typeof data.unit === 'string') {
                 currentUnit = data.unit;
                 const sel = document.getElementById('unit-select');
                 if (sel) sel.value = currentUnit;
             }
             
-            saveAnnotations();
-            drawDxf();
-            alert('Anotaciones cargadas correctamente.');
+            if (currentFileName) saveAnnotations();
+            if (dxfData) drawDxf();
+            alert('Anotaciones cargadas correctamente.' + (!dxfData ? '\n(Carga un plano DXF para verlas.)' : ''));
         } catch (err) {
-            console.error('Error parsing project JSON:', err);
-            alert('Error al cargar el archivo de anotaciones.');
+            console.error('Error loading project JSON:', err);
+            alert('Error al cargar:\n' + err.message);
         }
-        // Reset input so the same file can be loaded again if needed
         e.target.value = '';
     };
     reader.readAsText(file);

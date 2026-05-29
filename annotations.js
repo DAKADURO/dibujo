@@ -31,6 +31,7 @@ export function setupAnnotations() {
     document.getElementById('btn-measure-area')?.addEventListener('click', (e) => setMode('measure-area', e.target.closest('.btn')));
     document.getElementById('btn-measure-angle')?.addEventListener('click', (e) => setMode('measure-angle', e.target.closest('.btn')));
     document.getElementById('btn-cople').addEventListener('click', (e) => setMode('cople', e.target.closest('.btn')));
+    document.getElementById('btn-assign-prop')?.addEventListener('click', (e) => setMode('assign-prop', e.target.closest('.btn')));
     document.getElementById('btn-line')?.addEventListener('click', (e) => setMode('line', e.target.closest('.btn')));
     document.getElementById('btn-rect').addEventListener('click', (e) => setMode('rect', e.target.closest('.btn')));
     document.getElementById('btn-draw')?.addEventListener('click', (e) => setMode('draw', e.target.closest('.btn')));
@@ -381,6 +382,21 @@ window.loadFabricSymbolsData = function(symbolsData) {
         }
     });
     fCanvas.renderAll();
+};
+
+window.getFabricState = function() {
+    if (!fCanvas) return null;
+    return fCanvas.toJSON(['dxfX', 'dxfY', 'isAnnotation', 'baseScaleX', 'baseScaleY', 'createdDxfScale']);
+};
+
+window.loadFabricState = function(json) {
+    if (!fCanvas || !json) return;
+    fCanvas.loadFromJSON(json, () => {
+        fCanvas.renderAll();
+        if (window.syncFabricSymbols && window.viewStateScale) {
+            window.syncFabricSymbols(window.viewStateScale);
+        }
+    });
 };
 
 export function setMode(mode, btnElement) {

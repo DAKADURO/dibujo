@@ -121,6 +121,21 @@
                 </div>
 
                 <div class="tool-col">
+                    <button class="btn tool-btn ribbon-btn" id="btn-assign-prop" title="Asignar diámetro/color a línea existente">
+                        <span class="btn-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+                                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+                                <path d="M2 2l7.586 7.586"></path>
+                                <circle cx="11" cy="11" r="2"></circle>
+                            </svg>
+                        </span>
+                        Asignar
+                    </button>
+                    <div class="color-pick-spacer" style="height: 20px;"></div>
+                </div>
+
+                <div class="tool-col">
                     <button class="btn tool-btn ribbon-btn" id="btn-line" title="Dibujar tubería o línea recta">
                         <span class="btn-icon">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -301,7 +316,13 @@
             <div class="ribbon-label">Salida</div>
         </div>
         
-        <div class="topbar-right" style="margin-left: auto; padding-right: 20px; display: flex; align-items: center;">
+        <div class="topbar-right" style="margin-left: auto; padding-right: 20px; display: flex; align-items: center; gap: 15px;">
+            <div id="collab-status" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); background: var(--bg-surface); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--glass-border);">
+                <div id="collab-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></div>
+                <span id="collab-text">Local</span>
+                <span id="collab-room" style="font-family: 'JetBrains Mono', monospace; color: var(--primary-color); font-weight: bold; margin-left: 5px; user-select: text; cursor: pointer;" title="Clic para copiar enlace"></span>
+            </div>
+
             <div class="brand">
                 <div class="brand-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -443,6 +464,34 @@
     <div id="recent-colors-wrapper" style="display:none;">
         <div class="recent-colors-title">Recientes</div>
         <div id="recent-colors-container"></div>
+    </div>
+</div>
+
+<!-- ═══════════════ FLOATING ASSIGN PROPS ═══════════════ -->
+<div id="floating-assign-props" style="display:none; position: absolute; z-index: 1000; background: var(--bg-raised); border: 1px solid var(--glass-border); padding: 12px; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); width: 220px;">
+    <div class="float-panel-title">Asignar Tubería</div>
+    <div class="float-row">
+        <div class="float-field" style="flex: 1;">
+            <select id="assign-part" class="float-select" style="width: 100%;">
+                <!-- Populated by JS from CATALOG_AIRPIPE.standard -->
+            </select>
+        </div>
+        <div class="float-field">
+            <input type="color" id="assign-color" class="float-color-pick" value="#06b6d4" title="Color de la tubería">
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ COLLABORATION CURSORS ═══════════════ -->
+<div id="cursors-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000; overflow: hidden;"></div>
+
+<!-- ═══════════════ NAME MODAL ═══════════════ -->
+<div id="name-modal" class="hidden">
+    <div class="modal-content">
+        <h3>Bienvenido a DXF Studio</h3>
+        <p style="font-size: 12px; color: var(--text-secondary);">Ingresa tu nombre para colaborar en tiempo real</p>
+        <input type="text" id="name-input" placeholder="Tu nombre..." autocomplete="off">
+        <button id="btn-name-save" class="btn primary">Entrar</button>
     </div>
 </div>
 

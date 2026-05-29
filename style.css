@@ -825,3 +825,68 @@ input[type="color"].float-color-pick:hover { border-color: var(--glass-border-ho
 
 /* Prevent tooltip on primary button (too noisy) */
 .btn.primary[title]:hover::before { display: none; }
+
+/* ─── Cursors & Modals ──────────────────────────────── */
+.collab-cursor {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1000;
+    transition: left 0.1s linear, top 0.1s linear;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.collab-cursor-svg {
+    width: 20px;
+    height: 20px;
+    transform: translate(-4px, -4px);
+    filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));
+}
+.collab-cursor-label {
+    background: currentColor;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    margin-top: -2px;
+    margin-left: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+    font-family: 'Inter', sans-serif;
+}
+
+#name-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 8, 16, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.modal-content {
+    background: var(--bg-raised);
+    padding: 24px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-lg);
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+}
+.modal-content h3 { color: var(--text-primary); font-size: 16px; }
+.modal-content input {
+    padding: 10px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--glass-border);
+    background: var(--bg-overlay);
+    color: var(--text-primary);
+    outline: none;
+    font-family: inherit;
+    font-size: 14px;
+}
+.modal-content input:focus { border-color: var(--accent-2); }

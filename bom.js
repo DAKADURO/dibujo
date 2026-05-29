@@ -42,7 +42,7 @@ const TEXT_LAYERS = ['TEXTO', 'TEXTO2', 'T2TXT03', 'T4TXT07', 'FORTLUFT'];
  * @param {Array} virtualCouplings — virtual couplings created by the matrix tool
  * @returns {Object} { valves, fittings, instruments, pipeSpecs, pipeLengths }
  */
-export function generateBOM(dxfData, virtualCouplings = [], pipingSymbols = [], customLines = []) {
+export function generateBOM(dxfData, virtualCouplings = [], pipingSymbols = [], customLines = [], assignedLines = []) {
     if (!dxfData || !dxfData.entities) return null;
 
     const result = {
@@ -229,6 +229,29 @@ export function generateBOM(dxfData, virtualCouplings = [], pipingSymbols = [], 
             result.pipeLengths.push({
                 layer: 'Anotación Manual (Tuberías)',
                 totalLength: Math.round(totalCustomLength * 100) / 100
+            });
+        }
+    }
+
+    // Add assigned DXF lines (manually labeled pipes)
+    if (assignedLines && assignedLines.length > 0) {
+        const lengthsByDiameter = {};
+        for (const al of assignedLines) {
+            if (!al.points || al.points.length < 2) continue;
+            let len = 0;
+            for (let i = 1; i < al.points.length; i++) {
+                len += dist(al.points[i-1], al.points[i]);
+            }
+            if (len > 0) {
+                const dia = al.diameter || 'Tubería Asignada';
+                lengthsByDiameter[dia] = (lengthsByDiameter[dia] || 0) + len;
+            }
+        }
+        
+        for (const [dia, totalLength] of Object.entries(lengthsByDiameter)) {
+            result.pipeLengths.push({
+                layer: `DXF (Asignado: ${dia})`,
+                totalLength: Math.round(totalLength * 100) / 100
             });
         }
     }
