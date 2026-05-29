@@ -3122,8 +3122,26 @@ canvas.addEventListener('mousedown', (e) => {
             return; // Do nothing else
         }
     }
-    
     if (currentTool === 'pan') {
+        const rect = canvas.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        const hit = findSymbolAt(cx, cy);
+        
+        if (hit >= 0 && pipingSymbols[hit].selected) {
+            // Drag an already selected symbol (selected via double click)
+            symDragging = true;
+            symDragLastX = e.clientX;
+            symDragLastY = e.clientY;
+            return; // Don't pan
+        } else if (hit < 0 && selectedSymbolIndex >= 0) {
+            // Clicked empty space, deselect
+            pipingSymbols.forEach(s => s.selected = false);
+            selectedSymbolIndex = -1;
+            updateSymbolPropertiesUI();
+            drawDxf();
+        }
+        
         viewState.isDragging = true;
         viewState.lastX = e.clientX;
         viewState.lastY = e.clientY;
