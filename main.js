@@ -187,6 +187,12 @@ setToolChangeCallback((tool) => {
     
     const infoSum = document.getElementById('info-sum');
     
+    if (tool !== 'assign-prop') {
+        const assignPanel = document.getElementById('floating-assign-props');
+        if (assignPanel) assignPanel.style.display = 'none';
+        assignPropPendingData = null;
+    }
+    
     if (tool === 'assign-prop' || tool === 'cople' || tool === 'delete' || tool === 'sum' || (tool.startsWith('sym-') && tool !== 'sym-move') || tool === 'line' || tool.startsWith('measure')) {
         container.classList.add('measure-mode'); // Use crosshair
         if (tool === 'cople' && infoCople) infoCople.style.display = 'flex';
