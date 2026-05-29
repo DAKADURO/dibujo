@@ -342,6 +342,27 @@
     </div>
 </div>
 
+<!-- ═══════════════ CONFIRM MODAL ═══════════════ -->
+<div id="confirm-modal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+    <div class="modal-content" style="background: var(--bg-surface); padding: 24px; border-radius: 12px; border: 1px solid var(--red); max-width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <div style="color: var(--red); margin-bottom: 12px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+        </div>
+        <h3 style="color: var(--text-primary); margin-bottom: 12px; font-size: 18px;">¡Advertencia Crítica!</h3>
+        <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.5; margin-bottom: 24px;">
+            Estás a punto de <strong>borrar TODAS las cotas, mediciones, tuberías y figuras</strong> dibujadas en el plano. <br><br>Esta acción <strong>NO se puede deshacer</strong> y afectará a todos los usuarios conectados. ¿Estás absolutamente seguro de que deseas continuar?
+        </p>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+            <button id="btn-cancel-clear" class="btn" style="flex: 1; padding: 10px;">Cancelar</button>
+            <button id="btn-confirm-clear" class="btn primary" style="flex: 1; background: var(--red); box-shadow: none; padding: 10px;">Sí, Borrar Todo</button>
+        </div>
+    </div>
+</div>
+
 <script type="module" src="./main.js"></script>
 </body>
 </html>
