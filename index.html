@@ -14,326 +14,169 @@
 <body>
 <div id="app">
 
-    <!-- ── BARRA SUPERIOR (RIBBON) ── -->
-    <div id="topbar">
-        <!-- Archivo & Opciones -->
-        <div class="ribbon-panel">
-            <div class="ribbon-group">
-                <label for="dxf-input" class="btn primary btn-sm">
-                    <span class="btn-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                    </span>
-                    Cargar DXF
-                </label>
-                <input type="file" id="dxf-input" accept=".dxf" class="hidden">
-                
-                <div class="select-wrap">
-                    <select id="unit-select" class="styled-select">
-                        <option value="mm">Milímetros (mm)</option>
-                        <option value="m">Metros (m)</option>
-                        <option value="in">Pulgadas (in)</option>
-                    </select>
-                </div>
-            </div>
-            <div class="ribbon-label">Archivo</div>
-        </div>
-
-        <div class="ribbon-separator"></div>
-
-        <!-- Navegación -->
-        <div class="ribbon-panel">
-            <div class="ribbon-group">
-                <button class="btn tool-btn active ribbon-btn" id="btn-pan" title="Mover lienzo">
-                    <span class="btn-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/>
-                        </svg>
-                    </span>
-                    Paneo
-                </button>
-                <button class="btn tool-btn ribbon-btn" id="btn-sym-move" title="Mover/Rotar Símbolo (Doble clic para rotar)">
-                    <span class="btn-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line>
-                        </svg>
-                    </span>
-                    Mover / Rotar
-                </button>
-            </div>
-            <div class="ribbon-label">Navegación</div>
-        </div>
-
-        <div class="ribbon-separator"></div>
-
-        <!-- Dibujo y Medición -->
-        <div class="ribbon-panel">
-            <div class="ribbon-group">
-                <div class="tool-col">
-                    <button class="btn tool-btn ribbon-btn" id="btn-measure" title="Medir distancia simple">
-                        <span class="btn-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M2 12h20M2 12l4-4M2 12l4 4M22 12l-4-4M22 12l-4 4"/>
-                            </svg>
-                        </span>
-                        Medir
-                    </button>
-                    <input type="color" id="measure-color-picker" value="#06b6d4" title="Color de cotas" class="color-pick color-pick-small">
-                </div>
-
-                <div class="tool-col">
-                    <button class="btn tool-btn ribbon-btn" id="btn-measure-cont" title="Acotamiento continuo">
-                        <span class="btn-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="2 12 10 12 18 12 22 12"/><circle cx="2" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="22" cy="12" r="2"/>
-                            </svg>
-                        </span>
-                        Med. Cont.
-                    </button>
-                    <div class="color-pick-spacer" style="height: 20px;"></div>
-                </div>
-
-                <div class="tool-col">
-                    <button class="btn tool-btn ribbon-btn" id="btn-measure-area" title="Medir Área (clics para polígono, clic derecho para cerrar)">
-                        <span class="btn-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/>
-                            </svg>
-                        </span>
-                        Área
-                    </button>
-                    <div class="color-pick-spacer" style="height: 20px;"></div>
-                </div>
-
-                <div class="tool-col">
-                    <button class="btn tool-btn ribbon-btn" id="btn-measure-angle" title="Medir Ángulo (3 puntos: vértice, inicio, fin)">
-                        <span class="btn-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M3 20h18"/><path d="M3 20L18 5"/><path d="M12 20a9 9 0 0 1-5.5-3"/>
-                            </svg>
-                        </span>
-                        Ángulo
-                    </button>
-                    <div class="color-pick-spacer" style="height: 20px;"></div>
-                </div>
-
-                <div class="tool-col">
-                    <button class="btn tool-btn ribbon-btn" id="btn-assign-prop" title="Asignar diámetro/color a línea existente">
-                        <span class="btn-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
-                                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
-                                <path d="M2 2l7.586 7.586"></path>
-                                <circle cx="11" cy="11" r="2"></circle>
-                            </svg>
-                        </span>
-                        Asignar
-                    </button>
-                    <div class="color-pick-spacer" style="height: 20px;"></div>
-                </div>
-
-                <div class="tool-col">
-                    <button class="btn tool-btn ribbon-btn" id="btn-line" title="Dibujar tubería o línea recta">
-                        <span class="btn-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="5" y1="19" x2="19" y2="5"></line>
-                            </svg>
-                        </span>
-                        Línea
-                    </button>
-                    <input type="color" id="line-color-picker" value="#a855f7" title="Color de tubería/línea" class="color-pick color-pick-small">
-                </div>
-
-                <div class="tool-col">
-                    <button class="btn tool-btn ribbon-btn" id="btn-cople" title="Colocar matriz de coples en tubería">
-                        <span class="btn-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/>
-                                <line x1="9" y1="12" x2="15" y2="12"/>
-                            </svg>
-                        </span>
-                        Matriz Coples
-                    </button>
-                    <input type="color" id="cople-color-picker" value="#ef4444" title="Color de coples" class="color-pick color-pick-small">
-                </div>
-
-                <div class="tool-col">
-                    <button class="btn tool-btn ribbon-btn" id="btn-draw" title="Dibujo Libre (Lápiz)">
-                        <span class="btn-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 19l7-7 3 3-7 7-3-3z"/>
-                                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
-                                <path d="M2 2l7.586 7.586"/>
-                                <circle cx="11" cy="11" r="2"/>
-                            </svg>
-                        </span>
-                        Lápiz
-                    </button>
-                    <!-- Spacer to align with color pickers -->
-                    <div class="color-pick-spacer" style="height: 20px;"></div>
-                </div>
-
-                <div class="tool-col">
-                    <button class="btn tool-btn ribbon-btn" id="btn-rect" title="Dibujar rectángulo de resaltado">
-                        <span class="btn-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                            </svg>
-                        </span>
-                        Rectángulo
-                    </button>
-                    <div class="color-pick-spacer" style="height: 20px;"></div>
-                </div>
-
-                <div class="tool-col">
-                    <button class="btn tool-btn ribbon-btn" id="btn-text" title="Agregar anotación de texto">
-                        <span class="btn-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>
-                            </svg>
-                        </span>
-                        Texto
-                    </button>
-                    <div class="color-pick-spacer" style="height: 20px;"></div>
-                </div>
-            </div>
-            <div class="ribbon-label">Dibujo & Medición</div>
-        </div>
-
-        <div class="ribbon-separator"></div>
-
-        <!-- Símbolos -->
-        <div class="ribbon-panel">
-            <div class="ribbon-group grid-group" style="display: grid; grid-template-columns: repeat(3, 78px); gap: 4px;">
-                <button class="btn tool-btn btn-sm ribbon-icon-btn" id="btn-sym-tee" title="Insertar Tee"><span class="btn-icon" style="font-size:16px;">┬</span>Tee</button>
-                <button class="btn tool-btn btn-sm ribbon-icon-btn" id="btn-sym-tee-lat" title="Insertar Tee Lateral"><span class="btn-icon" style="font-size:16px;">├</span>Tee L.</button>
-                <button class="btn tool-btn btn-sm ribbon-icon-btn" id="btn-sym-codo" title="Insertar Codo"><span class="btn-icon" style="font-size:16px;">┐</span>Codo</button>
-                <button class="btn tool-btn btn-sm ribbon-icon-btn" id="btn-sym-reductor" title="Insertar Reductor"><span class="btn-icon" style="font-size:16px;">▶</span>Reduct.</button>
-                <button class="btn tool-btn btn-sm ribbon-icon-btn" id="btn-sym-brida" title="Insertar Brida"><span class="btn-icon" style="font-size:16px;">| |</span>Brida</button>
-                <button class="btn tool-btn btn-sm ribbon-icon-btn" id="btn-sym-tapon" title="Insertar Tapón"><span class="btn-icon" style="font-size:16px;">┤</span>Tapón</button>
-            </div>
-            <!-- Símbolo Color at bottom of panel -->
-            <div style="display: flex; justify-content: center; margin-top: 4px;">
-                <input type="color" id="sym-color-picker" value="#06b6d4" title="Color de símbolo" class="color-pick color-pick-small">
-            </div>
-            <div class="ribbon-label">Símbolos</div>
-        </div>
-
-        <div class="ribbon-separator"></div>
-
-        <!-- Utilidades -->
-        <div class="ribbon-panel">
-            <div class="ribbon-group">
-                <button class="btn tool-btn ribbon-btn" id="btn-sum" title="Sumar cotas seleccionadas">
-                    <span class="btn-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                        </svg>
-                    </span>
-                    Sumar
-                </button>
-                <button class="btn tool-btn ribbon-btn danger-hover" id="btn-delete" title="Borrar elemento">
-                    <span class="btn-icon" style="color:var(--red);">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                    </span>
-                    Borrador
-                </button>
-                <button class="btn tool-btn ribbon-btn danger-hover" id="btn-clear-measures" title="Borrar todas las cotas">
-                    <span class="btn-icon" style="color:var(--red);">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>
-                        </svg>
-                    </span>
-                    Limpiar
-                </button>
-                <button class="btn tool-btn ribbon-btn" id="btn-bom" title="Generar Listado de Materiales (BOM)">
-                    <span class="btn-icon" style="color:var(--emerald);">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line>
-                        </svg>
-                    </span>
-                    BOM
-                </button>
-            </div>
-            <div class="ribbon-label">Análisis & Edición</div>
-        </div>
-        
-        <div class="ribbon-separator"></div>
-        
-        <!-- Proyecto -->
-        <div class="ribbon-panel">
-            <div class="ribbon-group">
-                <button class="btn ribbon-btn" id="btn-save-project" title="Guardar anotaciones editables en archivo JSON">
-                    <span class="btn-icon" style="color:var(--primary-color);">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline>
-                        </svg>
-                    </span>
-                    Guardar
-                </button>
-                <label for="project-input" class="btn ribbon-btn" title="Cargar anotaciones desde archivo JSON" style="cursor: pointer;">
-                    <span class="btn-icon" style="color:var(--primary-color);">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                    </span>
-                    Cargar
-                </label>
-                <input type="file" id="project-input" accept=".json" class="hidden" style="display:none;">
-            </div>
-            <div class="ribbon-label">Proyecto</div>
-        </div>
-
-        <div class="ribbon-separator"></div>
-        
-        <div class="ribbon-panel">
-            <div class="ribbon-group">
-                <button class="btn tool-btn ribbon-btn" id="btn-export" title="Exportar vista actual como imagen PNG">
-                    <span class="btn-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-                            <polyline points="21 15 16 10 5 21"/>
-                        </svg>
-                    </span>
-                    Exportar Imagen
-                </button>
-                <button class="btn ribbon-btn" id="btn-export-dxf" title="Exportar con medidas superpuestas" style="border-color: rgba(14,165,233,0.3); background: rgba(14,165,233,0.05);">
-                    <span class="btn-icon" style="color:var(--accent-2);">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
-                            <line x1="12" y1="3" x2="12" y2="15"></line>
-                        </svg>
-                    </span>
-                    Exportar DXF
-                </button>
-            </div>
-            <div class="ribbon-label">Salida</div>
-        </div>
-        
-        <div class="topbar-right" style="margin-left: auto; padding-right: 20px; display: flex; align-items: center; gap: 15px;">
-            <div id="collab-status" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); background: var(--bg-surface); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--glass-border);">
-                <div id="collab-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></div>
-                <span id="collab-text">Local</span>
-                <span id="collab-room" style="font-family: 'JetBrains Mono', monospace; color: var(--primary-color); font-weight: bold; margin-left: 5px; user-select: text; cursor: pointer;" title="Clic para copiar enlace"></span>
-                <label style="display:flex; align-items:center; gap:4px; margin-left: 8px; padding-left: 8px; border-left: 1px solid var(--glass-border); cursor: pointer;" title="Mostrar/ocultar cursores de otros usuarios">
-                    <input type="checkbox" id="toggle-cursors" checked style="accent-color: var(--primary-color);">
-                    Cursores
-                </label>
-            </div>
-
+    <!-- ── BARRA SUPERIOR (MODERNA) ── -->
+    <div id="topbar" class="modern-topbar">
+        <!-- Logo -->
+        <div class="tb-group">
             <div class="brand">
                 <div class="brand-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
                     </svg>
                 </div>
-                <div class="brand-text">DXF <span>Studio</span> <sup class="brand-badge" style="top:0;">PRO</sup></div>
+            </div>
+        </div>
+
+        <div class="tb-divider"></div>
+
+        <!-- Archivo -->
+        <div class="tb-group">
+            <label for="dxf-input" class="tb-btn primary" title="Cargar archivo DXF">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span>Cargar DXF</span>
+            </label>
+            <input type="file" id="dxf-input" accept=".dxf" class="hidden">
+            
+            <div class="select-wrap">
+                <select id="unit-select" class="styled-select tb-select" title="Unidad de medida">
+                    <option value="mm">mm</option>
+                    <option value="m">m</option>
+                    <option value="in">in</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="tb-divider"></div>
+
+        <!-- Navegación -->
+        <div class="tb-group">
+            <button class="tb-tool-btn tool-btn active" id="btn-pan" title="Paneo (Mover lienzo)">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
+            </button>
+            <button class="tb-tool-btn tool-btn" id="btn-sym-move" title="Mover / Rotar Símbolo (Doble clic para rotar)">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            </button>
+        </div>
+
+        <div class="tb-divider"></div>
+
+        <!-- Herramientas Dibujo & Medición -->
+        <div class="tb-group">
+            <div class="tb-combo-btn">
+                <button class="tb-tool-btn tool-btn" id="btn-measure" title="Medir distancia simple">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20M2 12l4-4M2 12l4 4M22 12l-4-4M22 12l-4 4"/></svg>
+                </button>
+                <input type="color" id="measure-color-picker" value="#06b6d4" title="Color de cotas" class="tb-color-pick">
+            </div>
+            
+            <button class="tb-tool-btn tool-btn" id="btn-measure-cont" title="Acotamiento continuo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 12 10 12 18 12 22 12"/><circle cx="2" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="22" cy="12" r="2"/></svg>
+            </button>
+            <button class="tb-tool-btn tool-btn" id="btn-measure-area" title="Medir Área">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>
+            </button>
+            <button class="tb-tool-btn tool-btn" id="btn-measure-angle" title="Medir Ángulo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M3 20L18 5"/><path d="M12 20a9 9 0 0 1-5.5-3"/></svg>
+            </button>
+            
+            <div class="tb-divider-small"></div>
+            
+            <button class="tb-tool-btn tool-btn" id="btn-assign-prop" title="Asignar diámetro/color">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg>
+            </button>
+
+            <div class="tb-combo-btn">
+                <button class="tb-tool-btn tool-btn" id="btn-line" title="Dibujar tubería/línea">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="19" y2="5"></line></svg>
+                </button>
+                <input type="color" id="line-color-picker" value="#a855f7" title="Color de línea" class="tb-color-pick">
+            </div>
+
+            <div class="tb-combo-btn">
+                <button class="tb-tool-btn tool-btn" id="btn-cople" title="Matriz de coples">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
+                </button>
+                <input type="color" id="cople-color-picker" value="#ef4444" title="Color coples" class="tb-color-pick">
+            </div>
+
+            <button class="tb-tool-btn tool-btn" id="btn-draw" title="Lápiz libre">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+            </button>
+            <button class="tb-tool-btn tool-btn" id="btn-rect" title="Rectángulo resaltado">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+            </button>
+            <button class="tb-tool-btn tool-btn" id="btn-text" title="Texto">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+            </button>
+        </div>
+
+        <div class="tb-divider"></div>
+
+        <!-- Símbolos -->
+        <div class="tb-group">
+            <div class="tb-combo-btn">
+                <div class="tb-symbols-row">
+                    <button class="tb-tool-btn tb-sym tool-btn" id="btn-sym-tee" title="Insertar Tee">┬</button>
+                    <button class="tb-tool-btn tb-sym tool-btn" id="btn-sym-tee-lat" title="Insertar Tee Lateral">├</button>
+                    <button class="tb-tool-btn tb-sym tool-btn" id="btn-sym-codo" title="Insertar Codo">┐</button>
+                    <button class="tb-tool-btn tb-sym tool-btn" id="btn-sym-reductor" title="Insertar Reductor">▶</button>
+                    <button class="tb-tool-btn tb-sym tool-btn" id="btn-sym-brida" title="Insertar Brida">||</button>
+                    <button class="tb-tool-btn tb-sym tool-btn" id="btn-sym-tapon" title="Insertar Tapón">┤</button>
+                </div>
+                <input type="color" id="sym-color-picker" value="#06b6d4" title="Color símbolo" class="tb-color-pick">
+            </div>
+        </div>
+
+        <div class="tb-divider"></div>
+
+        <!-- Utilidades y Edición -->
+        <div class="tb-group">
+            <button class="tb-tool-btn tool-btn" id="btn-sum" title="Sumar cotas seleccionadas">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </button>
+            <button class="tb-tool-btn danger tool-btn" id="btn-delete" title="Borrar elemento">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+            <button class="tb-tool-btn danger tool-btn" id="btn-clear-measures" title="Borrar todas las cotas">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+            </button>
+            <button class="tb-btn success tool-btn" id="btn-bom" title="Generar Listado de Materiales (BOM)">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                <span>BOM</span>
+            </button>
+        </div>
+
+        <div class="tb-spacer"></div>
+
+        <!-- Proyecto & Exportación -->
+        <div class="tb-group">
+            <button class="tb-btn outline" id="btn-save-project" title="Guardar Proyecto">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            </button>
+            <label for="project-input" class="tb-btn outline" title="Cargar Proyecto">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </label>
+            
+            <button class="tb-btn outline" id="btn-export" title="Exportar PNG">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </button>
+            <button class="tb-btn outline" id="btn-export-dxf" title="Exportar DXF" style="color:var(--accent-2); border-color:rgba(14,165,233,0.3);">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            </button>
+        </div>
+
+        <div class="tb-divider"></div>
+
+        <!-- Collab Status -->
+        <div class="tb-group" style="padding-right: 15px;">
+            <div id="collab-status" class="tb-collab-status">
+                <div id="collab-dot" class="dot"></div>
+                <span id="collab-text">Local</span>
+                <span id="collab-room"></span>
+                <label class="cursor-toggle" title="Mostrar/ocultar cursores">
+                    <input type="checkbox" id="toggle-cursors" checked>
+                    Crs
+                </label>
             </div>
         </div>
     </div><!-- /topbar -->
