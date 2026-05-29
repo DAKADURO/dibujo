@@ -1503,7 +1503,7 @@ function getSegmentsIntersection(p1, p2, p3, p4) {
     return null;
 }
 
-function findClosestSnapPoint(mouseDxfPt, maxScreenDist) {
+function findClosestSnapPoint(mouseDxfPt, maxScreenDist, ignoreSymIndex = -1) {
     let bestPt = null;
     let bestDistSq = Infinity;
     let bestPriority = 99; // 0=Port, 1=Intersection, 2=Endpoint, 3=Edge (Lower is better)
@@ -1527,7 +1527,9 @@ function findClosestSnapPoint(mouseDxfPt, maxScreenDist) {
     }
 
     // ── 1. Symbol Ports (Priority 0) ──
-    for (const sym of pipingSymbols) {
+    for (let i = 0; i < pipingSymbols.length; i++) {
+        if (i === ignoreSymIndex) continue;
+        const sym = pipingSymbols[i];
         const ports = getSymbolConnectionPortsDxf(sym);
         for (const p of ports) {
             const dx = p.x - mouseDxfPt.x;
@@ -3178,7 +3180,8 @@ canvas.addEventListener('mousemove', (e) => {
         if (cy) cy.textContent = `Y: ${pt.y.toFixed(2)}`;
         
         if (currentTool === 'measure' || currentTool === 'line' || currentTool.startsWith('sym-') || symDragging) {
-            currentSnapPoint = findClosestSnapPoint(pt, 15); // 15px snap radius
+            let ignoreIndex = symDragging ? selectedSymbolIndex : -1;
+            currentSnapPoint = findClosestSnapPoint(pt, 15, ignoreIndex); // 15px snap radius
             
             // Si el snap jaló el cursor fuera del eje ortogonal, forzarlo de vuelta al eje
             if (currentTool === 'line' && linePending && !e.shiftKey && currentSnapPoint) {
