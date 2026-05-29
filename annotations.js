@@ -48,6 +48,7 @@ export function setupAnnotations() {
     document.getElementById('btn-sym-brida').addEventListener('click', (e) => setMode('sym-brida', e.target.closest('.btn')));
     document.getElementById('btn-sym-tapon')?.addEventListener('click', (e) => setMode('sym-tapon', e.target.closest('.btn')));
     document.getElementById('btn-sym-quickdrop')?.addEventListener('click', (e) => setMode('sym-quickdrop', e.target.closest('.btn')));
+    document.getElementById('btn-sym-valvula')?.addEventListener('click', (e) => setMode('sym-valvula', e.target.closest('.btn')));
     document.getElementById('btn-sym-move').addEventListener('click', (e) => setMode('sym-move', e.target.closest('.btn')));
     
     // Allow deleting Fabric objects with Backspace/Delete keys

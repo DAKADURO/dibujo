@@ -148,6 +148,49 @@ const CATALOG_AIRPIPE = {
         { code: '8011', d1: '100mm (4")', d2: '3/4"', label: '8011: 100mm (4") x 3/4" (NPT Hembra)' },
         { code: '9011', d1: '150mm (6")', d2: '3/4"', label: '9011: 150mm (6") x 3/4" (NPT Hembra)' }
     ],
+    'valvula': [
+        // Threaded Ball Valve (Brass)
+        { code: '1052', d1: '20mm (3/4")', d2: '20mm (3/4")', label: '1052: 20mm (3/4") (Brass Ball Valve)' },
+        { code: '2052', d1: '25mm (1")', d2: '25mm (1")', label: '2052: 25mm (1") (Brass Ball Valve)' },
+        { code: '4052', d1: '40mm (1 1/2")', d2: '40mm (1 1/2")', label: '4052: 40mm (1 1/2") (Brass Ball Valve)' },
+        { code: '5052', d1: '50mm (2")', d2: '50mm (2")', label: '5052: 50mm (2") (Brass Ball Valve)' },
+        // Threaded Ball Valve (Aluminium)
+        { code: '0073', d1: '25mm (1")', d2: '25mm (1")', label: '0073: 25mm (1") (Alum Ball Valve, Female)' },
+        { code: '0173', d1: '40mm (1 1/2")', d2: '40mm (1 1/2")', label: '0173: 40mm (1 1/2") (Alum Ball Valve, Female)' },
+        { code: '1073', d1: '25mm (1")', d2: '25mm (1")', label: '1073: 25mm (1") (Alum Ball Valve, Male)' },
+        { code: '1173', d1: '40mm (1 1/2")', d2: '40mm (1 1/2")', label: '1173: 40mm (1 1/2") (Alum Ball Valve, Male)' },
+        { code: '0273', d1: '25mm (1")', d2: '25mm (1")', label: '0273: 25mm (1") (Alum Ball Valve, Male/Female)' },
+        { code: '1273', d1: '40mm (1 1/2")', d2: '40mm (1 1/2")', label: '1273: 40mm (1 1/2") (Alum Ball Valve, Male/Female)' },
+        { code: '2073', d1: '25mm (1")', d2: '25mm (1")', label: '2073: 25mm (1") (Alum Ball Valve, Female)' },
+        { code: '4073', d1: '40mm (1 1/2")', d2: '40mm (1 1/2")', label: '4073: 40mm (1 1/2") (Alum Ball Valve, Female)' },
+        { code: '5073', d1: '50mm (2")', d2: '50mm (2")', label: '5073: 50mm (2") (Alum Ball Valve, Female)' },
+        // Quick Connect Valve - One-port Female Wall Bracket
+        { code: '1252', d1: '20mm (3/4")', label: '1252: 20mm (3/4") (1-port Wall Bracket)' },
+        { code: '2252', d1: '25mm (1")', label: '2252: 25mm (1") (1-port Wall Bracket)' },
+        { code: '2452', d1: '25mm (1")', label: '2452: 25mm (1") (1-port Wall Bracket)' },
+        { code: '4452', d1: '40mm (1 1/2")', label: '4452: 40mm (1 1/2") (1-port Wall Bracket)' },
+        { code: '6552', d1: '50mm (2")', label: '6552: 50mm (2") (1-port Wall Bracket)' },
+        // Quick Connect Valve - Two-port Female Wall Bracket
+        { code: '1152', d1: '20mm (3/4")', label: '1152: 20mm (3/4") (2-port Wall Bracket)' },
+        { code: '2152', d1: '25mm (1")', label: '2152: 25mm (1") (2-port Wall Bracket)' },
+        // Quick Connect Valve - Male Threaded Quick Connect Valve
+        { code: '1352', d1: '20mm (3/4")', label: '1352: 20mm (3/4") (Male QC Valve)' },
+        { code: '2352', d1: '25mm (1")', label: '2352: 25mm (1") (Male QC Valve)' },
+        { code: '4352', d1: '40mm (1 1/2")', label: '4352: 40mm (1 1/2") (Male QC Valve)' },
+        { code: '5352', d1: '50mm (2")', label: '5352: 50mm (2") (Male QC Valve)' },
+        // Butterfly Valve Pre-Assembled (Cast Iron)
+        { code: '6051', d1: '63mm (2 1/2")', label: '6051: 63mm (2 1/2") (Butterfly Valve CI)' },
+        { code: '7051', d1: '80mm (3")', label: '7051: 80mm (3") (Butterfly Valve CI)' },
+        { code: '8051', d1: '100mm (4")', label: '8051: 100mm (4") (Butterfly Valve CI)' },
+        { code: '9051', d1: '150mm (6")', label: '9051: 150mm (6") (Butterfly Valve CI)' },
+        { code: 'A051', d1: '200mm (8")', label: 'A051: 200mm (8") (Butterfly Valve CI)' },
+        // Butterfly Valve Pre-Assembled (Stainless Steel)
+        { code: '6151', d1: '63mm (2 1/2")', label: '6151: 63mm (2 1/2") (Butterfly Valve SS)' },
+        { code: '7151', d1: '80mm (3")', label: '7151: 80mm (3") (Butterfly Valve SS)' },
+        { code: '8151', d1: '100mm (4")', label: '8151: 100mm (4") (Butterfly Valve SS)' },
+        { code: '9151', d1: '150mm (6")', label: '9151: 150mm (6") (Butterfly Valve SS)' },
+        { code: 'A151', d1: '200mm (8")', label: 'A151: 200mm (8") (Butterfly Valve SS)' }
+    ],
     'standard': [
         { d1: '20mm (3/4")', label: '20mm (3/4")' },
         { d1: '25mm (1")', label: '25mm (1")' },
@@ -1512,7 +1555,9 @@ function getSymbolConnectionPortsDxf(sym) {
         }
         case 'codo':     return [portAt(-s, 0), portAt(0, s)];
         case 'reductor': return [portAt(-s, 0), portAt(s, 0)];
-        case 'brida':    return [portAt(0, -s), portAt(0, s)];
+        case 'brida':
+        case 'valvula':
+            return [portAt(-s, 0), portAt(s, 0)];
         case 'tapon':    return [portAt(-s, 0)];
         default:         return [];
     }
@@ -2042,6 +2087,8 @@ function updateSymbolPropertiesUI(x, y) {
                 ];
             } else if (sym.type === 'quickdrop') {
                 options = CATALOG_AIRPIPE['quickdrop'];
+            } else if (sym.type === 'valvula') {
+                options = CATALOG_AIRPIPE['valvula'];
             } else {
                 options = CATALOG_AIRPIPE['standard'];
             }
@@ -2470,6 +2517,13 @@ function drawSymbols() {
         } else if (sym.type === 'quickdrop') {
             ctx.arc(0, 0, s * 0.4, 0, Math.PI * 2); // circle on main line
             ctx.moveTo(0, s * 0.4); ctx.lineTo(0, s); // drop
+        } else if (sym.type === 'valvula') {
+            // Bowtie shape
+            ctx.moveTo(-s, -s * 0.5);
+            ctx.lineTo(-s, s * 0.5);
+            ctx.lineTo(s, -s * 0.5);
+            ctx.lineTo(s, s * 0.5);
+            ctx.closePath();
         }
         ctx.stroke();
         
@@ -2477,6 +2531,7 @@ function drawSymbols() {
         let label = '';
         if (sym.type === 'tapon') label = 'Tapón';
         else if (sym.type === 'tee-lat') label = 'Tee Lat';
+        else if (sym.type === 'valvula') label = 'Válvula';
         else if (sym.type) label = sym.type.charAt(0).toUpperCase() + sym.type.slice(1);
         
         if (sym.code) label += ` ${sym.code}`;
