@@ -3492,6 +3492,21 @@ document.getElementById('project-input')?.addEventListener('change', (e) => {
             const data = JSON.parse(evt.target.result);
             
             if (!data || typeof data !== 'object') throw new Error('JSON inválido');
+
+            // Confirm before overwriting shared state
+            const hasExistingData = measurements.length > 0 || customLines.length > 0 || areas.length > 0 || angles.length > 0 || assignedLines.length > 0 || pipingSymbols.length > 0;
+            if (hasExistingData) {
+                const proceed = confirm(
+                    "⚠️ ADVERTENCIA ⚠️\n\n" +
+                    "Actualmente ya hay elementos dibujados en esta sesión compartida.\n" +
+                    "Si cargas este archivo JSON, vas a BORRAR los cambios nuevos que tú o tus compañeros acaban de hacer, y se sobreescribirá todo con el contenido de este archivo.\n\n" +
+                    "¿Estás SEGURO de que quieres borrar el progreso actual y reemplazarlo por este archivo?"
+                );
+                if (!proceed) {
+                    e.target.value = '';
+                    return;
+                }
+            }
             
             if (Array.isArray(data.measurements)) measurements = data.measurements;
             if (Array.isArray(data.customLines)) customLines = data.customLines;
@@ -3530,4 +3545,15 @@ document.getElementById('project-input')?.addEventListener('change', (e) => {
         e.target.value = '';
     };
     reader.readAsText(file);
+});
+
+// ─── Warn before exit/reload ───
+window.addEventListener('beforeunload', (e) => {
+    const hasData = measurements.length > 0 || customLines.length > 0 || areas.length > 0 || angles.length > 0 || assignedLines.length > 0 || pipingSymbols.length > 0;
+    if (hasData) {
+        // Modern browsers usually show a generic message, but setting this is required to trigger the dialog
+        e.preventDefault();
+        e.returnValue = '¿Descargaste tu archivo JSON de anotaciones? Si no lo haces, los cambios podrían perderse.';
+        return e.returnValue;
+    }
 });
