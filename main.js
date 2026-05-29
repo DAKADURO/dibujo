@@ -1618,6 +1618,13 @@ function findClosestSnapPoint(mouseDxfPt, maxScreenDist, ignoreSymIndex = -1) {
             const dy = p.y - mouseDxfPt.y;
             checkSnap(p, dx * dx + dy * dy, 0, p);
         }
+        
+        // Also allow snapping exactly to the symbol's center (intersection point)
+        if (sym.dxfX !== undefined && sym.dxfY !== undefined) {
+            const dx = sym.dxfX - mouseDxfPt.x;
+            const dy = sym.dxfY - mouseDxfPt.y;
+            checkSnap({ x: sym.dxfX, y: sym.dxfY }, dx * dx + dy * dy, 0, { outDxfX: 0, outDxfY: 0, isCenter: true });
+        }
     }
 
     // ── 2. DXF Entities (Endpoints, Intersections, Edges) ──
