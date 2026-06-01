@@ -304,11 +304,17 @@ setToolChangeCallback((tool) => {
         
         if (tool === 'sum' && infoSum) infoSum.style.display = 'flex';
         else if (infoSum) infoSum.style.display = 'none';
+
+        const infoJoin = document.getElementById('info-join');
+        if (tool === 'join' && infoJoin) infoJoin.style.display = 'flex';
+        else if (infoJoin) infoJoin.style.display = 'none';
     } else {
         if (infoCople) infoCople.style.display = 'none';
         if (infoSum) infoSum.style.display = 'none';
         if (infoArea) infoArea.style.display = 'none';
         if (infoAngle) infoAngle.style.display = 'none';
+        const infoJoin = document.getElementById('info-join');
+        if (infoJoin) infoJoin.style.display = 'none';
     }
     
     // Clear selection when not in sum mode
@@ -2861,9 +2867,9 @@ function drawJoinedLines() {
         ctx.fillText('\u26d3 Unificada', sm.x, sm.y - 6 * exportScale);
     }
 
-    // \u2500\u2500 Draw entities currently being picked (pending join session) \u2500\u2500\u2500\u2500\u2500\u2500
+    // ── Draw entities currently being picked (pending join session)
     if (joinPendingEntities.length > 0) {
-        ctx.strokeStyle = 'rgba(251,146,60,0.8)'; // orange highlight
+        ctx.strokeStyle = 'rgba(251,146,60,0.85)';
         ctx.lineWidth = 4 * exportScale;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -2879,22 +2885,33 @@ function drawJoinedLines() {
             }
             ctx.stroke();
         }
-
-        // Instruction label near cursor
-        if (currentMousePt) {
-            const cp = dxfToScreen(currentMousePt.x, currentMousePt.y);
-            ctx.font = `11px "Inter", sans-serif`;
-            ctx.fillStyle = 'rgba(251,146,60,0.9)';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'top';
-            ctx.fillText(
-                `${joinPendingEntities.length} tramo(s) seleccionado(s) \u2014 Clic derecho para unificar`,
-                cp.x + 14, cp.y + 6
-            );
-        }
     }
 
     ctx.restore();
+}
+
+/** Shared finalize logic — called by button click OR right-click */
+function finalizeJoin() {
+    if (joinPendingEntities.length < 1) return;
+    const pts = chainSegments(joinPendingEntities);
+    if (pts.length >= 2) {
+        joinedLines.push({ points: pts, color: '#f59e0b' });
+        saveAnnotations();
+    }
+    joinPendingEntities = [];
+    updateJoinCount();
+    drawDxf();
+}
+
+/** Update the counter label in the info-join bar */
+function updateJoinCount() {
+    const el = document.getElementById('join-count');
+    if (el) {
+        const n = joinPendingEntities.length;
+        el.textContent = n === 0
+            ? 'Haz clic en los tramos a unir'
+            : `${n} tramo${n > 1 ? 's' : ''} seleccionado${n > 1 ? 's' : ''}`;
+    }
 }
 
 /** Handle clicks for the join tool */
@@ -2902,20 +2919,14 @@ function handleJoinClick(e) {
     if (currentTool !== 'join') return;
     if (!dxfData || !dxfData.entities) return;
 
-    // \u2500\u2500 Right click: finalize \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    // ── Right click: finalize
     if (e.button === 2) {
-        if (joinPendingEntities.length < 1) return;
-        const pts = chainSegments(joinPendingEntities);
-        if (pts.length >= 2) {
-            joinedLines.push({ points: pts, color: '#f59e0b' });
-            saveAnnotations();
-        }
-        joinPendingEntities = [];
-        drawDxf();
+        e.preventDefault();
+        finalizeJoin();
         return;
     }
 
-    // \u2500\u2500 Left click: pick closest line entity \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    // ── Left click: pick closest line entity
     const pt = screenToDxf(e.clientX, e.clientY);
     const maxScreenDist = 18;
     const maxDxfDistSq = Math.pow(maxScreenDist / viewState.scale, 2);
@@ -2945,8 +2956,22 @@ function handleJoinClick(e) {
         joinPendingEntities.push(closestEnt);
     }
 
+    updateJoinCount();
     drawDxf();
 }
+
+// ── Wire up UNIFICAR / Cancelar buttons
+document.getElementById('btn-join-confirm')?.addEventListener('click', () => finalizeJoin());
+document.getElementById('btn-join-cancel')?.addEventListener('click', () => {
+    joinPendingEntities = [];
+    updateJoinCount();
+    drawDxf();
+});
+
+// ── Prevent browser context menu on canvas when in join/cople mode
+document.getElementById('dxf-canvas')?.addEventListener('contextmenu', (e) => {
+    if (currentTool === 'join' || currentTool === 'cople') e.preventDefault();
+});
 
 function distToSegmentSquared(p, v, w) {
     const l2 = distSquared(v, w);
