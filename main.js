@@ -636,7 +636,34 @@ function buildDxfEntityHelpers() {
         return s;
     }
 
-    return { dxfLine, dxfText, dxfCircle, nl, getUpdatedHandseedString };
+    function dxfSolid(x1, y1, x2, y2, x3, y3, x4, y4, colorHex) {
+        if (isNaN(x1) || isNaN(y1)) return '';
+        const c = hexToAci(colorHex);
+        const h = getNextDxfHandle();
+        let s = '';
+        s += `  0${nl}SOLID${nl}`;
+        s += `  5${nl}${h}${nl}`;
+        if (modern && modelSpaceHandle) s += `330${nl}${modelSpaceHandle}${nl}`;
+        if (modern) s += `100${nl}AcDbEntity${nl}`;
+        s += `  8${nl}ANOTACIONES${nl}`;
+        s += ` 62${nl}     ${c}${nl}`;
+        if (modern) s += `100${nl}AcDbTrace${nl}`;
+        s += ` 10${nl}${x1.toFixed(6)}${nl}`;
+        s += ` 20${nl}${y1.toFixed(6)}${nl}`;
+        s += ` 30${nl}0.0${nl}`;
+        s += ` 11${nl}${x2.toFixed(6)}${nl}`;
+        s += ` 21${nl}${y2.toFixed(6)}${nl}`;
+        s += ` 31${nl}0.0${nl}`;
+        s += ` 12${nl}${x4.toFixed(6)}${nl}`;
+        s += ` 22${nl}${y4.toFixed(6)}${nl}`;
+        s += ` 32${nl}0.0${nl}`;
+        s += ` 13${nl}${x3.toFixed(6)}${nl}`;
+        s += ` 23${nl}${y3.toFixed(6)}${nl}`;
+        s += ` 33${nl}0.0${nl}`;
+        return s;
+    }
+
+    return { dxfLine, dxfText, dxfCircle, dxfSolid, nl, getUpdatedHandseedString };
 }
 
 function rotatePt(cx, cy, px, py, angleRad) {
@@ -650,7 +677,7 @@ function rotatePt(cx, cy, px, py, angleRad) {
 
 export function generateModifiedDxfBlob() {
     const helpers = buildDxfEntityHelpers();
-    const { dxfLine, dxfText, dxfCircle } = helpers;
+    const { dxfLine, dxfText, dxfCircle, dxfSolid } = helpers;
     let customEntities = '';
 
     // ── 1. Fabric.js annotations (Freehand paths, Rectangles, Text) ──────────
@@ -773,13 +800,13 @@ export function generateModifiedDxfBlob() {
             }
         }
         if (isFinite(minX) && isFinite(maxX) && maxX > minX) {
-            // Increased the baseline drawing scale so symbols and couplings are 
-            // more clearly visible in AutoCAD.
-            drawingScale = (maxX - minX) / 4000;
+            // Dividing by 8000 gives a small proportional unit suitable for
+            // typical mm-scale piping drawings (coords in the 5000-15000 range).
+            drawingScale = (maxX - minX) / 8000;
         }
     }
-    const cHalf  = Math.max(drawingScale * 2.5, 0.8);  // half-width of coupling rectangle
-    const cHalfH = Math.max(drawingScale * 1.0, 0.3); // half-height
+    const cHalf  = Math.max(drawingScale * 1.5, 0.3);  // half-width of coupling rectangle
+    const cHalfH = Math.max(drawingScale * 0.6, 0.1); // half-height
 
     for (const c of virtualCouplings) {
         const cx = c.x, cy = c.y;
@@ -789,15 +816,12 @@ export function generateModifiedDxfBlob() {
         const p2 = rotatePt(cx, cy, cx + cHalf, cy - cHalfH, a);
         const p3 = rotatePt(cx, cy, cx + cHalf, cy + cHalfH, a);
         const p4 = rotatePt(cx, cy, cx - cHalf, cy + cHalfH, a);
-        customEntities += dxfLine(p1.x, p1.y, p2.x, p2.y, color);
-        customEntities += dxfLine(p2.x, p2.y, p3.x, p3.y, color);
-        customEntities += dxfLine(p3.x, p3.y, p4.x, p4.y, color);
-        customEntities += dxfLine(p4.x, p4.y, p1.x, p1.y, color);
+        customEntities += dxfSolid(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y, color);
     }
 
     // ── 4. Piping Symbols ────────────────────────────────────────────────────
-    // Symbol size in DXF drawing units. Multiplier keeps symbols clearly visible.
-    const sSize = Math.max(drawingScale * 4, 1.0);
+    // Symbol size in DXF drawing units. Multiplier 2 keeps symbols small but visible.
+    const sSize = Math.max(drawingScale * 2, 0.3);
 
     for (const sym of pipingSymbols) {
         const cx = sym.dxfX, cy = sym.dxfY;
