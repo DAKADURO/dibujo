@@ -73,6 +73,10 @@ let currentSnapPoint = null;
 let coplePathSegments = [];   // segments added to the current cople path
 let coplePathMatrixId = null; // shared matrixId for the current path session
 
+// ─── Join Lines State ───
+let joinedLines = [];          // finalized unified polylines: { points, color }
+let joinPendingEntities = [];  // entities being picked during current join session
+
 const CATALOG_AIRPIPE = {
     'reductor': [
         { code: '2121', d1: '25mm (1")', d2: '20mm (3/4")', label: '2121: 25mm (1") x 20mm (3/4")' },
@@ -263,6 +267,11 @@ setToolChangeCallback((tool) => {
         coplePathSegments = [];
         coplePathMatrixId = null;
     }
+    // ── Cancelar selección de unificación si se cambia de herramienta ──
+    if (joinPendingEntities && joinPendingEntities.length > 0) {
+        joinPendingEntities = [];
+        drawDxf();
+    }
     const container = document.getElementById('canvas-container');
     const infoCople = document.getElementById('info-cople');
     const infoArea = document.getElementById('info-area');
@@ -282,7 +291,7 @@ setToolChangeCallback((tool) => {
         assignPropPendingData = null;
     }
     
-    if (tool === 'assign-prop' || tool === 'cople' || tool === 'delete' || tool === 'sum' || (tool.startsWith('sym-') && tool !== 'sym-move') || tool === 'line' || tool.startsWith('measure')) {
+    if (tool === 'assign-prop' || tool === 'cople' || tool === 'delete' || tool === 'sum' || tool === 'join' || (tool.startsWith('sym-') && tool !== 'sym-move') || tool === 'line' || tool.startsWith('measure')) {
         container.classList.add('measure-mode'); // Use crosshair
         if (tool === 'cople' && infoCople) infoCople.style.display = 'flex';
         else if (infoCople) infoCople.style.display = 'none';
@@ -1004,6 +1013,7 @@ function drawDxf() {
     drawSnapIndicator();
     drawCustomLines();
     drawAssignedLines();  // ← assigned lines FIRST (below everything else)
+    drawJoinedLines();    // ← unified polylines
     drawCouplings();
     drawMeasurements();
     drawAreas();
@@ -2361,7 +2371,25 @@ function handleDeleteClick(e) {
     }
     
     if (!deletedSomething) {
-        // 6. Check Fabric.js annotations (Freehand lines, Rectangles, Text)
+        // 6. Check joined lines
+        for (let i = joinedLines.length - 1; i >= 0; i--) {
+            const jl = joinedLines[i];
+            for (let j = 0; j < jl.points.length - 1; j++) {
+                const sp1 = dxfToScreen(jl.points[j].x, jl.points[j].y);
+                const sp2 = dxfToScreen(jl.points[j + 1].x, jl.points[j + 1].y);
+                if (distToSegmentSquaredScreen(clickScreen, sp1, sp2) < 25) {
+                    joinedLines.splice(i, 1);
+                    saveAnnotations();
+                    drawDxf();
+                    deletedSomething = true;
+                    return;
+                }
+            }
+        }
+    }
+    
+    if (!deletedSomething) {
+        // 7. Check Fabric.js annotations (Freehand lines, Rectangles, Text)
         if (window.deleteFabricObjectAtEvent) {
             deletedSomething = window.deleteFabricObjectAtEvent(e);
         }
@@ -2695,6 +2723,21 @@ function handleCopleClick(e) {
         }
     }
 
+    // Also consider joined (unified) lines as eligible targets
+    for (const jl of joinedLines) {
+        const pts = jl.points || [];
+        if (pts.length < 2) continue;
+        // Build a synthetic entity object so the rest of the logic works unchanged
+        for (let i = 0; i < pts.length - 1; i++) {
+            const dSq = distToSegmentSquared(pt, pts[i], pts[i + 1]);
+            if (dSq < maxDxfDistSq && dSq < closestDistSq) {
+                closestDistSq = dSq;
+                // Wrap the joined line as a synthetic entity-like object
+                closestEnt = { _isJoined: true, vertices: pts };
+            }
+        }
+    }
+
     if (!closestEnt) return;
 
     // Check if this entity is already in the path to avoid duplicates
@@ -2714,6 +2757,192 @@ function handleCopleClick(e) {
         if (hint) {
             hint.textContent = `${coplePathSegments.length} seg · ${count} coples — Clic derecho para terminar`;
         }
+    }
+
+    drawDxf();
+}
+
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  JOIN / UNIFY LINES TOOL
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+
+/**
+ * Try to chain a list of polyline/line segments end-to-end into a single ordered
+ * list of points.  Uses a greedy nearest-endpoint matching algorithm so segments
+ * don\u2019t need to be picked in order.
+ */
+function chainSegments(entities) {
+    if (entities.length === 0) return [];
+
+    // Build a list of { pts, used } from each entity\u2019s vertices
+    const segs = entities.map(e => ({ pts: (e.vertices || []).map(v => ({ x: v.x, y: v.y })), used: false }));
+
+    // Start with the first segment
+    const result = [...segs[0].pts];
+    segs[0].used = true;
+    const SNAP_TOL = 1; // tolerance in DXF units for endpoint matching
+
+    const dist2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+
+    let remaining = segs.filter(s => !s.used).length;
+    while (remaining > 0) {
+        const tail = result[result.length - 1];
+        let bestSeg = null, bestDist = Infinity, bestReversed = false;
+
+        for (const seg of segs) {
+            if (seg.used || seg.pts.length < 2) continue;
+            const d1 = dist2(tail, seg.pts[0]);
+            const d2 = dist2(tail, seg.pts[seg.pts.length - 1]);
+            if (d1 < bestDist) { bestDist = d1; bestSeg = seg; bestReversed = false; }
+            if (d2 < bestDist) { bestDist = d2; bestSeg = seg; bestReversed = true; }
+        }
+
+        if (!bestSeg) break; // no more connectable segments
+        bestSeg.used = true;
+        const pts = bestReversed ? [...bestSeg.pts].reverse() : bestSeg.pts;
+        // Skip first point if it\u2019s very close to the current tail (avoid duplicates)
+        const start = dist2(tail, pts[0]) < SNAP_TOL * SNAP_TOL ? 1 : 0;
+        result.push(...pts.slice(start));
+        remaining = segs.filter(s => !s.used).length;
+    }
+
+    // Append any unused segments at the end (disconnected pieces)
+    for (const seg of segs) {
+        if (!seg.used && seg.pts.length >= 2) result.push(...seg.pts);
+    }
+
+    return result;
+}
+
+/** Draw finalized joined lines and any entities in the current pick-session */
+function drawJoinedLines() {
+    const exportScale = window.exportScaleFactor || 1;
+    ctx.save();
+
+    // \u2500\u2500 Draw finalized unified polylines \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    for (const jl of joinedLines) {
+        if (!jl.points || jl.points.length < 2) continue;
+        const color = jl.color || '#f59e0b';
+
+        // Glow / halo effect
+        ctx.strokeStyle = hexToRgba(color, 0.25);
+        ctx.lineWidth = 10 * exportScale;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        const s0 = dxfToScreen(jl.points[0].x, jl.points[0].y);
+        ctx.moveTo(s0.x, s0.y);
+        for (let i = 1; i < jl.points.length; i++) {
+            const si = dxfToScreen(jl.points[i].x, jl.points[i].y);
+            ctx.lineTo(si.x, si.y);
+        }
+        ctx.stroke();
+
+        // Solid line
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5 * exportScale;
+        ctx.setLineDash([10, 4]);
+        ctx.beginPath();
+        ctx.moveTo(s0.x, s0.y);
+        for (let i = 1; i < jl.points.length; i++) {
+            const si = dxfToScreen(jl.points[i].x, jl.points[i].y);
+            ctx.lineTo(si.x, si.y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Label at midpoint
+        const mid = Math.floor(jl.points.length / 2);
+        const sm = dxfToScreen(jl.points[mid].x, jl.points[mid].y);
+        ctx.font = `bold ${11 * exportScale}px "Inter", sans-serif`;
+        ctx.fillStyle = color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('\u26d3 Unificada', sm.x, sm.y - 6 * exportScale);
+    }
+
+    // \u2500\u2500 Draw entities currently being picked (pending join session) \u2500\u2500\u2500\u2500\u2500\u2500
+    if (joinPendingEntities.length > 0) {
+        ctx.strokeStyle = 'rgba(251,146,60,0.8)'; // orange highlight
+        ctx.lineWidth = 4 * exportScale;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        for (const ent of joinPendingEntities) {
+            const pts = ent.vertices || [];
+            if (pts.length < 2) continue;
+            ctx.beginPath();
+            const s0 = dxfToScreen(pts[0].x, pts[0].y);
+            ctx.moveTo(s0.x, s0.y);
+            for (let i = 1; i < pts.length; i++) {
+                const si = dxfToScreen(pts[i].x, pts[i].y);
+                ctx.lineTo(si.x, si.y);
+            }
+            ctx.stroke();
+        }
+
+        // Instruction label near cursor
+        if (currentMousePt) {
+            const cp = dxfToScreen(currentMousePt.x, currentMousePt.y);
+            ctx.font = `11px "Inter", sans-serif`;
+            ctx.fillStyle = 'rgba(251,146,60,0.9)';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(
+                `${joinPendingEntities.length} tramo(s) seleccionado(s) \u2014 Clic derecho para unificar`,
+                cp.x + 14, cp.y + 6
+            );
+        }
+    }
+
+    ctx.restore();
+}
+
+/** Handle clicks for the join tool */
+function handleJoinClick(e) {
+    if (currentTool !== 'join') return;
+    if (!dxfData || !dxfData.entities) return;
+
+    // \u2500\u2500 Right click: finalize \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    if (e.button === 2) {
+        if (joinPendingEntities.length < 1) return;
+        const pts = chainSegments(joinPendingEntities);
+        if (pts.length >= 2) {
+            joinedLines.push({ points: pts, color: '#f59e0b' });
+            saveAnnotations();
+        }
+        joinPendingEntities = [];
+        drawDxf();
+        return;
+    }
+
+    // \u2500\u2500 Left click: pick closest line entity \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    const pt = screenToDxf(e.clientX, e.clientY);
+    const maxScreenDist = 18;
+    const maxDxfDistSq = Math.pow(maxScreenDist / viewState.scale, 2);
+
+    let closestEnt = null;
+    let closestDistSq = Infinity;
+
+    for (const ent of dxfData.entities) {
+        if (ent.type !== 'LINE' && ent.type !== 'LWPOLYLINE' && ent.type !== 'POLYLINE') continue;
+        const pts = ent.vertices || [];
+        for (let i = 0; i < pts.length - 1; i++) {
+            const dSq = distToSegmentSquared(pt, pts[i], pts[i + 1]);
+            if (dSq < maxDxfDistSq && dSq < closestDistSq) {
+                closestDistSq = dSq;
+                closestEnt = ent;
+            }
+        }
+    }
+
+    if (!closestEnt) return;
+
+    // Toggle: if already selected, remove it
+    const idx = joinPendingEntities.indexOf(closestEnt);
+    if (idx >= 0) {
+        joinPendingEntities.splice(idx, 1);
+    } else {
+        joinPendingEntities.push(closestEnt);
     }
 
     drawDxf();
@@ -2753,6 +2982,8 @@ document.getElementById('btn-clear-measures')?.addEventListener('click', () => {
     virtualCouplings.length = 0; // Clear couplings as well
     coplePathSegments = [];
     coplePathMatrixId = null;
+    joinedLines = [];
+    joinPendingEntities = [];
     saveAnnotations();
     const infoMeasure = document.getElementById('info-measure');
     if (infoMeasure) infoMeasure.style.display = 'none';
@@ -2998,6 +3229,7 @@ function saveAnnotations() {
         customLines: customLines,
         couplings: virtualCouplings,
         assignedLines: assignedLines,
+        joinedLines: joinedLines,
         unit: currentUnit,
         symbols: pipingSymbols.map(s => ({ 
             type: s.type, 
@@ -3038,6 +3270,7 @@ function loadAnnotations() {
             if (data.angles) angles = data.angles;
             if (data.customLines) customLines = data.customLines;
             if (data.assignedLines) assignedLines = data.assignedLines;
+            if (data.joinedLines) joinedLines = data.joinedLines;
             if (data.couplings) {
                 virtualCouplings.length = 0;
                 virtualCouplings.push(...data.couplings);
@@ -3215,6 +3448,10 @@ canvas.addEventListener('mousedown', (e) => {
     }
     if (currentTool === 'cople') {
         handleCopleClick(e);
+        return;
+    }
+    if (currentTool === 'join') {
+        handleJoinClick(e);
         return;
     }
     if (currentTool === 'delete') {
