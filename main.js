@@ -2729,17 +2729,17 @@ function handleCopleClick(e) {
         }
     }
 
-    // Also consider joined (unified) lines as eligible targets
+    // Also consider joined (unified) lines as eligible targets (give them priority over underlying lines)
     for (const jl of joinedLines) {
         const pts = jl.points || [];
         if (pts.length < 2) continue;
         // Build a synthetic entity object so the rest of the logic works unchanged
         for (let i = 0; i < pts.length - 1; i++) {
             const dSq = distToSegmentSquared(pt, pts[i], pts[i + 1]);
-            if (dSq < maxDxfDistSq && dSq < closestDistSq) {
+            // Use <= plus a small epsilon so unified lines win ties against the original DXF lines below them
+            if (dSq < maxDxfDistSq && dSq <= closestDistSq + 1e-5) {
                 closestDistSq = dSq;
-                // Wrap the joined line as a synthetic entity-like object
-                closestEnt = { _isJoined: true, vertices: pts };
+                closestEnt = { _isJoined: true, vertices: pts, _originalJl: jl };
             }
         }
     }
@@ -2747,7 +2747,11 @@ function handleCopleClick(e) {
     if (!closestEnt) return;
 
     // Check if this entity is already in the path to avoid duplicates
-    const alreadyAdded = coplePathSegments.some(s => s.entity === closestEnt);
+    const alreadyAdded = coplePathSegments.some(s => {
+        if (s.entity === closestEnt) return true;
+        if (s.entity._isJoined && closestEnt._isJoined && s.entity._originalJl === closestEnt._originalJl) return true;
+        return false;
+    });
     if (alreadyAdded) return;
 
     // Add segment to path
