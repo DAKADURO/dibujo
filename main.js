@@ -2498,9 +2498,9 @@ function regenerateCoplePathCouplings() {
             const dy = pB.y - pA.y;
             const segLen = Math.hypot(dx, dy);
 
-            let localD = distanceAccum;
-            while (localD <= segLen) {
-                const t = localD / segLen;
+            let pos = distanceAccum;
+            while (pos <= segLen) {
+                const t = pos / segLen;
                 virtualCouplings.push({
                     x: pA.x + dx * t,
                     y: pA.y + dy * t,
@@ -2508,10 +2508,9 @@ function regenerateCoplePathCouplings() {
                     color,
                     matrixId: coplePathMatrixId
                 });
-                localD += inputDist;
+                pos += inputDist;
             }
-            distanceAccum = segLen - (localD - inputDist);
-            if (distanceAccum <= 0) distanceAccum = inputDist;
+            distanceAccum = pos - segLen;
         }
     }
 }
