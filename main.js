@@ -576,8 +576,33 @@ function buildDxfEntityHelpers() {
         s += ` 20${nl}${y1.toFixed(6)}${nl}`;
         s += ` 30${nl}0.0${nl}`;
         s += ` 11${nl}${x2.toFixed(6)}${nl}`;
-        s += ` 21${nl}${y1.toFixed(6)}${nl}`;
+        s += ` 21${nl}${y2.toFixed(6)}${nl}`;
         s += ` 31${nl}0.0${nl}`;
+        return s;
+    }
+
+    /**
+     * Emit a DXF LWPOLYLINE entity with constant width
+     */
+    function dxfLwPolylineWidth(x1, y1, x2, y2, width, colorHex) {
+        if (isNaN(x1) || isNaN(y1)) return '';
+        const c = hexToAci(colorHex);
+        const h = getNextDxfHandle();
+        let s = '';
+        s += `  0${nl}LWPOLYLINE${nl}`;
+        s += `  5${nl}${h}${nl}`;
+        if (modern && modelSpaceHandle) s += `330${nl}${modelSpaceHandle}${nl}`;
+        if (modern) s += `100${nl}AcDbEntity${nl}`;
+        s += `  8${nl}ANOTACIONES${nl}`;
+        s += ` 62${nl}     ${c}${nl}`;
+        if (modern) s += `100${nl}AcDbPolyline${nl}`;
+        s += ` 90${nl}2${nl}`;
+        s += ` 70${nl}0${nl}`;
+        s += ` 43${nl}${width.toFixed(6)}${nl}`;
+        s += ` 10${nl}${x1.toFixed(6)}${nl}`;
+        s += ` 20${nl}${y1.toFixed(6)}${nl}`;
+        s += ` 10${nl}${x2.toFixed(6)}${nl}`;
+        s += ` 20${nl}${y2.toFixed(6)}${nl}`;
         return s;
     }
 
@@ -663,7 +688,7 @@ function buildDxfEntityHelpers() {
         return s;
     }
 
-    return { dxfLine, dxfText, dxfCircle, dxfSolid, nl, getUpdatedHandseedString };
+    return { dxfLine, dxfText, dxfCircle, dxfSolid, dxfLwPolylineWidth, nl, getUpdatedHandseedString };
 }
 
 function rotatePt(cx, cy, px, py, angleRad) {
@@ -677,7 +702,7 @@ function rotatePt(cx, cy, px, py, angleRad) {
 
 export function generateModifiedDxfBlob() {
     const helpers = buildDxfEntityHelpers();
-    const { dxfLine, dxfText, dxfCircle, dxfSolid } = helpers;
+    const { dxfLine, dxfText, dxfCircle, dxfSolid, dxfLwPolylineWidth } = helpers;
     let customEntities = '';
 
     // ── 1. Fabric.js annotations (Freehand paths, Rectangles, Text) ──────────
@@ -812,11 +837,13 @@ export function generateModifiedDxfBlob() {
         const cx = c.x, cy = c.y;
         const color = c.color || document.getElementById('cople-color-picker')?.value || '#ef4444';
         const a = c.angle || 0; // already in radians (set by Math.atan2 in handleCopleClick)
-        const p1 = rotatePt(cx, cy, cx - cHalf, cy - cHalfH, a);
-        const p2 = rotatePt(cx, cy, cx + cHalf, cy - cHalfH, a);
-        const p3 = rotatePt(cx, cy, cx + cHalf, cy + cHalfH, a);
-        const p4 = rotatePt(cx, cy, cx - cHalf, cy + cHalfH, a);
-        customEntities += dxfSolid(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y, color);
+        
+        // Draw the coupling as a thick LWPOLYLINE from the left side to the right side
+        const ptA = rotatePt(cx, cy, cx - cHalf, cy, a);
+        const ptB = rotatePt(cx, cy, cx + cHalf, cy, a);
+        const width = cHalfH * 2;
+        
+        customEntities += dxfLwPolylineWidth(ptA.x, ptA.y, ptB.x, ptB.y, width, color);
     }
 
     // ── 4. Piping Symbols ────────────────────────────────────────────────────
