@@ -2001,6 +2001,28 @@ function handleAssignClick(e) {
     let closest = null;
     let closestDistSq = Infinity;
     
+    // First consider joined (unified) lines (give them priority)
+    for (const jl of joinedLines) {
+        if (!jl.points || jl.points.length < 2) continue;
+        for (let i = 0; i < jl.points.length - 1; i++) {
+            const p1 = jl.points[i];
+            const p2 = jl.points[i+1];
+            const proj = projectPointOnSegment(pt, p1, p2);
+            const sproj = dxfToScreen(proj.x, proj.y);
+            const smouse = { x: canvasX, y: canvasY };
+            const dSq = distSquared(smouse, sproj);
+            
+            // Use <= plus epsilon for priority over underlying DXF lines
+            if (dSq < maxScreenDistSq && dSq <= closestDistSq + 0.1) {
+                closestDistSq = dSq;
+                // Create a synthetic ID based on the first vertex
+                const id = "JL_" + Math.round(jl.points[0].x) + "_" + Math.round(jl.points[0].y);
+                closest = { id, points: jl.points, isJoinedLine: true, jlRef: jl };
+            }
+        }
+    }
+    
+    // Then consider raw DXF entities
     for (const ent of dxfData.entities) {
         if (ent.type !== 'LINE' && ent.type !== 'LWPOLYLINE' && ent.type !== 'POLYLINE') continue;
         const pts = getEntityPoints(ent);
@@ -2009,22 +2031,21 @@ function handleAssignClick(e) {
         for (let i = 0; i < pts.length - 1; i++) {
             const p1 = pts[i];
             const p2 = pts[i+1];
-            // Project closest point on segment to DXF coords
             const proj = projectPointOnSegment(pt, p1, p2);
-            // Convert to canvas coords and compare with mouse canvas pos
-            const sproj = dxfToScreen(proj.x, proj.y); // canvas-relative
-            const smouse = { x: canvasX, y: canvasY }; // canvas-relative
+            const sproj = dxfToScreen(proj.x, proj.y);
+            const smouse = { x: canvasX, y: canvasY };
             const dSq = distSquared(smouse, sproj);
             
             if (dSq < maxScreenDistSq && dSq < closestDistSq) {
                 closestDistSq = dSq;
-                closest = { ent, p1, p2, points: pts };
+                const id = ent.handle || ("L_" + Math.round(p1.x) + "_" + Math.round(p1.y) + "_" + Math.round(p2.x) + "_" + Math.round(p2.y));
+                closest = { id, points: pts, ent, p1, p2 };
             }
         }
     }
     
     if (closest) {
-        const id = closest.ent.handle || ("L_" + Math.round(closest.p1.x) + "_" + Math.round(closest.p1.y) + "_" + Math.round(closest.p2.x) + "_" + Math.round(closest.p2.y));
+        const id = closest.id;
         assignPropPendingData = { id, points: closest.points };
         
         const panel = document.getElementById('floating-assign-props');
