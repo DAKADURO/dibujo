@@ -69,6 +69,10 @@ let currentTool = 'pan'; // pan, measure, measure-cont, measure-area, measure-an
 let currentMousePt = { x: 0, y: 0 };
 let currentSnapPoint = null;
 
+// ─── Cople Path State (declared here so setToolChangeCallback can access them) ───
+let coplePathSegments = [];   // segments added to the current cople path
+let coplePathMatrixId = null; // shared matrixId for the current path session
+
 const CATALOG_AIRPIPE = {
     'reductor': [
         { code: '2121', d1: '25mm (1")', d2: '20mm (3/4")', label: '2121: 25mm (1") x 20mm (3/4")' },
@@ -252,6 +256,13 @@ resizeCanvas();
 setupAnnotations();
 setToolChangeCallback((tool) => {
     currentTool = tool;
+
+    // ── Finalizar trayecto de coples si se cambia de herramienta ──
+    if (coplePathSegments && coplePathSegments.length > 0) {
+        saveAnnotations();
+        coplePathSegments = [];
+        coplePathMatrixId = null;
+    }
     const container = document.getElementById('canvas-container');
     const infoCople = document.getElementById('info-cople');
     const infoArea = document.getElementById('info-area');
@@ -2424,17 +2435,84 @@ function updateSumDisplay() {
 //  COPLE ARRAY TOOL
 // ══════════════════════════════════════════════════
 
+
+/** Regenerate all couplings for the current cople path session */
+function regenerateCoplePathCouplings() {
+    // Remove previous couplings that belong to this path session
+    if (coplePathMatrixId !== null) {
+        for (let i = virtualCouplings.length - 1; i >= 0; i--) {
+            if (virtualCouplings[i].matrixId === coplePathMatrixId) {
+                virtualCouplings.splice(i, 1);
+            }
+        }
+    } else {
+        coplePathMatrixId = Date.now();
+    }
+
+    const inputDist = parseFloat(document.getElementById('cople-dist').value);
+    if (isNaN(inputDist) || inputDist <= 0) return;
+
+    const color = document.getElementById('cople-color-picker')?.value || '#ef4444';
+    let distanceAccum = inputDist; // distance remaining to place next cople
+
+    for (const seg of coplePathSegments) {
+        const pts = seg.points;
+        for (let i = 0; i < pts.length - 1; i++) {
+            const pA = pts[i];
+            const pB = pts[i + 1];
+            const dx = pB.x - pA.x;
+            const dy = pB.y - pA.y;
+            const segLen = Math.hypot(dx, dy);
+
+            let localD = distanceAccum;
+            while (localD <= segLen) {
+                const t = localD / segLen;
+                virtualCouplings.push({
+                    x: pA.x + dx * t,
+                    y: pA.y + dy * t,
+                    angle: Math.atan2(dy, dx),
+                    color,
+                    matrixId: coplePathMatrixId
+                });
+                localD += inputDist;
+            }
+            distanceAccum = segLen - (localD - inputDist);
+            if (distanceAccum <= 0) distanceAccum = inputDist;
+        }
+    }
+}
+
+/** Draw the accumulated cople path as a highlighted polyline */
+function drawCoplePath() {
+    if (coplePathSegments.length === 0) return;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(239,68,68,0.45)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 5]);
+    for (const seg of coplePathSegments) {
+        const pts = seg.points;
+        if (!pts || pts.length < 2) continue;
+        ctx.beginPath();
+        const s0 = dxfToScreen(pts[0].x, pts[0].y);
+        ctx.moveTo(s0.x, s0.y);
+        for (let i = 1; i < pts.length; i++) {
+            const si = dxfToScreen(pts[i].x, pts[i].y);
+            ctx.lineTo(si.x, si.y);
+        }
+        ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.restore();
+}
+
 function drawCouplings() {
+    if (coplePathSegments.length > 0) drawCoplePath();
     if (virtualCouplings.length === 0) return;
     ctx.save();
     
-    // Draw couplings as small red rectangles perpendicular to the line
+    // Draw couplings as small rectangles perpendicular to the line
     const width = 10;
     const height = 4;
-    
-    ctx.fillStyle = '#ef4444'; // Red
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1;
     
     for (const c of virtualCouplings) {
         if (c.x === undefined || c.y === undefined || isNaN(c.x) || isNaN(c.y)) continue;
@@ -2446,7 +2524,9 @@ function drawCouplings() {
             ctx.rotate(-c.angle);
         }
         
-        ctx.fillStyle = c.color || document.getElementById('cople-color-picker')?.value || '#ef4444'; // Default Red or selected color
+        ctx.fillStyle = c.color || document.getElementById('cople-color-picker')?.value || '#ef4444';
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
         
         const exportScale = window.exportScaleFactor || 1;
         let scaleFactor = Math.min(1.0, viewState.scale / 15.0);
@@ -2577,84 +2657,66 @@ function findSymbolAt(cx, cy) {
 function handleCopleClick(e) {
     if (currentTool !== 'cople') return;
     if (!dxfData || !dxfData.entities) return;
-    
+
+    // ── Clic derecho: finalizar trayecto ──────────────────────────────────────
+    if (e.button === 2) {
+        if (coplePathSegments.length > 0) {
+            // Persist couplings already placed in the path
+            saveAnnotations();
+            coplePathSegments = [];
+            coplePathMatrixId = null;
+            drawDxf();
+        }
+        return;
+    }
+
+    const inputDist = parseFloat(document.getElementById('cople-dist').value);
+    if (isNaN(inputDist) || inputDist <= 0) {
+        alert('Por favor ingresa una distancia válida.');
+        return;
+    }
+
     const pt = screenToDxf(e.clientX, e.clientY);
-    const maxScreenDist = 15;
+    const maxScreenDist = 18;
     const maxDxfDistSq = Math.pow(maxScreenDist / viewState.scale, 2);
-    
+
     let closestEnt = null;
     let closestDistSq = Infinity;
-    
-    // Valid layers roughly for piping
-    const pipeLayers = ['TUBOS', 'LINEA', 'I2DRUCKL', 'I2HDRUCKL', 'ALIMENTACION', 'AIRE', 'A-CONEX'];
-    
+
     for (const ent of dxfData.entities) {
         if (ent.type !== 'LINE' && ent.type !== 'LWPOLYLINE' && ent.type !== 'POLYLINE') continue;
-        
-        // Find distance to segment
-        let pts = [];
-        if (ent.type === 'LINE') {
-            pts = ent.vertices || [];
-        } else {
-            pts = ent.vertices || [];
-        }
-        
+        const pts = ent.vertices || [];
         for (let i = 0; i < pts.length - 1; i++) {
-            const dSq = distToSegmentSquared(pt, pts[i], pts[i+1]);
+            const dSq = distToSegmentSquared(pt, pts[i], pts[i + 1]);
             if (dSq < maxDxfDistSq && dSq < closestDistSq) {
                 closestDistSq = dSq;
                 closestEnt = ent;
             }
         }
     }
-    
-    if (closestEnt) {
-        const inputDist = parseFloat(document.getElementById('cople-dist').value);
-        if (isNaN(inputDist) || inputDist <= 0) {
-            alert('Por favor ingresa una distancia válida.');
-            return;
+
+    if (!closestEnt) return;
+
+    // Check if this entity is already in the path to avoid duplicates
+    const alreadyAdded = coplePathSegments.some(s => s.entity === closestEnt);
+    if (alreadyAdded) return;
+
+    // Add segment to path
+    coplePathSegments.push({ entity: closestEnt, points: closestEnt.vertices || [] });
+
+    // Regenerate all couplings along the accumulated path
+    regenerateCoplePathCouplings();
+
+    const count = virtualCouplings.filter(c => c.matrixId === coplePathMatrixId).length;
+    const infoEl = document.getElementById('info-cople');
+    if (infoEl) {
+        const hint = infoEl.querySelector('.cople-path-hint');
+        if (hint) {
+            hint.textContent = `${coplePathSegments.length} seg · ${count} coples — Clic derecho para terminar`;
         }
-        
-        let selectedPoints = closestEnt.vertices || [];
-        let distanceAccum = inputDist;
-        let generated = 0;
-        const matrixId = Date.now(); // Group ID for matrix deletion
-        
-        for (let i = 0; i < selectedPoints.length - 1; i++) {
-            const pA = selectedPoints[i];
-            const pB = selectedPoints[i+1];
-            
-            const dx = pB.x - pA.x;
-            const dy = pB.y - pA.y;
-            const segLen = Math.hypot(dx, dy);
-            
-            let localD = distanceAccum;
-            while (localD <= segLen) {
-                const t = localD / segLen;
-                const copleX = pA.x + dx * t;
-                const copleY = pA.y + dy * t;
-                
-                const angle = Math.atan2(dy, dx);
-                
-                virtualCouplings.push({ 
-                    x: copleX, 
-                    y: copleY, 
-                    matrixId,
-                    angle: angle,
-                    color: document.getElementById('cople-color-picker')?.value || '#ef4444'
-                });
-                
-                generated++;
-                localD += inputDist;
-            }
-            
-            // leftover length
-            distanceAccum = segLen - (localD - inputDist);
-        }
-        
-        if (generated > 0) saveAnnotations();
-        drawDxf();
     }
+
+    drawDxf();
 }
 
 function distToSegmentSquared(p, v, w) {
@@ -2689,6 +2751,8 @@ document.getElementById('btn-clear-measures')?.addEventListener('click', () => {
     anglePendingPoints = [];
     linePending = null;
     virtualCouplings.length = 0; // Clear couplings as well
+    coplePathSegments = [];
+    coplePathMatrixId = null;
     saveAnnotations();
     const infoMeasure = document.getElementById('info-measure');
     if (infoMeasure) infoMeasure.style.display = 'none';
