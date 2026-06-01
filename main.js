@@ -909,7 +909,7 @@ export function generateModifiedDxfBlob() {
         else if (sym.d1) label += ` ${sym.d1}`;
         else if (sym.d2) label += ` ${sym.d2}`;
 
-        const txtH  = sSize * 0.35;
+        const txtH  = sSize * 0.2;
         const txtW  = label.length * txtH * 0.6;
         const pL    = rotatePt(cx, cy, cx - txtW / 2, cy + sSize * 1.4, dxfAngle);
         customEntities += dxfText(label, pL.x, pL.y, txtH, color, dxfAngle);
