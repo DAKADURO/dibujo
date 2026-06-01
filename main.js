@@ -2852,6 +2852,11 @@ function drawJoinedLines() {
     // \u2500\u2500 Draw finalized unified polylines \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
     for (const jl of joinedLines) {
         if (!jl.points || jl.points.length < 2) continue;
+        
+        // Check if this unified line already has properties assigned
+        const id = "JL_" + Math.round(jl.points[0].x) + "_" + Math.round(jl.points[0].y);
+        if (assignedLines.some(al => al.id === id)) continue;
+        
         const color = jl.color || '#f59e0b';
 
         // Glow / halo effect
