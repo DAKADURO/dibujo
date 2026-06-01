@@ -615,7 +615,28 @@ function buildDxfEntityHelpers() {
         return s;
     }
 
-    return { dxfLine, dxfText, nl, getUpdatedHandseedString };
+    function dxfCircle(x, y, radius, colorHex) {
+        if (isNaN(x) || isNaN(y) || isNaN(radius)) return '';
+        if (!isFinite(x) || !isFinite(y) || !isFinite(radius)) return '';
+        const c = hexToAci(colorHex);
+        const h = getNextDxfHandle();
+
+        let s = '';
+        s += `  0${nl}CIRCLE${nl}`;
+        s += `  5${nl}${h}${nl}`;
+        if (modern && modelSpaceHandle) s += `330${nl}${modelSpaceHandle}${nl}`;
+        if (modern) s += `100${nl}AcDbEntity${nl}`;
+        s += `  8${nl}ANOTACIONES${nl}`;
+        s += ` 62${nl}     ${c}${nl}`;
+        if (modern) s += `100${nl}AcDbCircle${nl}`;
+        s += ` 10${nl}${x.toFixed(6)}${nl}`;
+        s += ` 20${nl}${y.toFixed(6)}${nl}`;
+        s += ` 30${nl}0.0${nl}`;
+        s += ` 40${nl}${radius.toFixed(6)}${nl}`;
+        return s;
+    }
+
+    return { dxfLine, dxfText, dxfCircle, nl, getUpdatedHandseedString };
 }
 
 function rotatePt(cx, cy, px, py, angleRad) {
@@ -629,7 +650,7 @@ function rotatePt(cx, cy, px, py, angleRad) {
 
 export function generateModifiedDxfBlob() {
     const helpers = buildDxfEntityHelpers();
-    const { dxfLine, dxfText } = helpers;
+    const { dxfLine, dxfText, dxfCircle } = helpers;
     let customEntities = '';
 
     // ── 1. Fabric.js annotations (Freehand paths, Rectangles, Text) ──────────
@@ -752,13 +773,13 @@ export function generateModifiedDxfBlob() {
             }
         }
         if (isFinite(minX) && isFinite(maxX) && maxX > minX) {
-            // Dividing by 8000 gives a small proportional unit suitable for
-            // typical mm-scale piping drawings (coords in the 5000-15000 range).
-            drawingScale = (maxX - minX) / 8000;
+            // Increased the baseline drawing scale so symbols and couplings are 
+            // more clearly visible in AutoCAD.
+            drawingScale = (maxX - minX) / 4000;
         }
     }
-    const cHalf  = Math.max(drawingScale * 1.5, 0.3);  // half-width of coupling rectangle
-    const cHalfH = Math.max(drawingScale * 0.6, 0.1); // half-height
+    const cHalf  = Math.max(drawingScale * 2.5, 0.8);  // half-width of coupling rectangle
+    const cHalfH = Math.max(drawingScale * 1.0, 0.3); // half-height
 
     for (const c of virtualCouplings) {
         const cx = c.x, cy = c.y;
@@ -775,8 +796,8 @@ export function generateModifiedDxfBlob() {
     }
 
     // ── 4. Piping Symbols ────────────────────────────────────────────────────
-    // Symbol size in DXF drawing units. Multiplier 2 keeps symbols small but visible.
-    const sSize = Math.max(drawingScale * 2, 0.3);
+    // Symbol size in DXF drawing units. Multiplier keeps symbols clearly visible.
+    const sSize = Math.max(drawingScale * 4, 1.0);
 
     for (const sym of pipingSymbols) {
         const cx = sym.dxfX, cy = sym.dxfY;
@@ -814,6 +835,15 @@ export function generateModifiedDxfBlob() {
         } else if (sym.type === 'tapon') {
             drawSeg(-sSize, 0,  0, 0);
             drawSeg(0, -sSize * 0.7, 0, sSize * 0.7);
+        } else if (sym.type === 'valvula') {
+            drawSeg(-sSize, -sSize * 0.6, -sSize,  sSize * 0.6);
+            drawSeg(-sSize,  sSize * 0.6,  sSize, -sSize * 0.6);
+            drawSeg( sSize, -sSize * 0.6,  sSize,  sSize * 0.6);
+            drawSeg( sSize,  sSize * 0.6, -sSize, -sSize * 0.6);
+        } else if (sym.type === 'quickdrop') {
+            const pC = rotatePt(cx, cy, cx, cy, dxfAngle);
+            customEntities += dxfCircle(pC.x, pC.y, sSize * 0.5, color);
+            drawSeg(0, sSize * 0.5, 0, sSize * 1.5);
         }
 
         // Label
