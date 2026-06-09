@@ -215,6 +215,30 @@ const CATALOG_AIRPIPE = {
         { code: '9151', d1: '150mm (6")', label: '9151: 150mm (6") (Butterfly Valve SS)' },
         { code: 'A151', d1: '200mm (8")', label: 'A151: 200mm (8") (Butterfly Valve SS)' }
     ],
+    'codo': [
+        { code: '1003', d1: '20mm (3/4")', label: '1003: Codo 20mm (3/4")', L: '3.90"' },
+        { code: '2003', d1: '25mm (1")', label: '2003: Codo 25mm (1")', L: '4.13"' },
+        { code: '4003', d1: '40mm (1 1/2")', label: '4003: Codo 40mm (1 1/2")', L: '5.47"' },
+        { code: '5003', d1: '50mm (2")', label: '5003: Codo 50mm (2")', L: '6.02"' },
+        { code: '6003', d1: '63mm (2 1/2")', label: '6003: Codo 63mm (2 1/2")', L: '5.63"' },
+        { code: '7003', d1: '80mm (3")', label: '7003: Codo 80mm (3")', L: '6.14"' },
+        { code: '8003', d1: '100mm (4")', label: '8003: Codo 100mm (4")', L: '7.64"' },
+        { code: '9003', d1: '150mm (6")', label: '9003: Codo 150mm (6")', L: '10.39"' },
+        { code: 'A003', d1: '200mm (8")', label: 'A003: Codo 200mm (8")', L: '12.32"' },
+        { code: 'M003', d1: '250mm (10")', label: 'M003: Codo 250mm (10")', L: '21.97"' }
+    ],
+    'tapon': [
+        { code: '1006', d1: '20mm (3/4")', label: '1006: Tapón 20mm (3/4")', L: '2.80"' },
+        { code: '2006', d1: '25mm (1")', label: '2006: Tapón 25mm (1")', L: '2.80"' },
+        { code: '4006', d1: '40mm (1 1/2")', label: '4006: Tapón 40mm (1 1/2")', L: '3.54"' },
+        { code: '5006', d1: '50mm (2")', label: '5006: Tapón 50mm (2")', L: '3.62"' },
+        { code: '6006', d1: '63mm (2 1/2")', label: '6006: Tapón 63mm (2 1/2")', L: '2.17"' },
+        { code: '7006', d1: '80mm (3")', label: '7006: Tapón 80mm (3")', L: '2.17"' },
+        { code: '8006', d1: '100mm (4")', label: '8006: Tapón 100mm (4")', L: '2.76"' },
+        { code: '9006', d1: '150mm (6")', label: '9006: Tapón 150mm (6")', L: '2.76"' },
+        { code: 'A006', d1: '200mm (8")', label: 'A006: Tapón 200mm (8")', L: '2.76"' },
+        { code: 'M006', d1: '250mm (10")', label: 'M006: Tapón 250mm (10")', L: '5.51"' }
+    ],
     'standard': [
         { d1: '20mm (3/4")', label: '20mm (3/4")' },
         { d1: '25mm (1")', label: '25mm (1")' },
@@ -950,18 +974,20 @@ export function generateModifiedDxfBlob() {
             const d = sSize * 0.7071; // sin(45)*sSize
             drawSeg(0, 0, d, -d);
         } else if (sym.type === 'codo') {
-            drawSeg(-sSize, 0,  0, 0);
-            drawSeg(0, 0,  0, -sSize);
+            drawSeg(-sSize * 2, 0,  0, 0);
+            drawSeg(0, 0,  0, -sSize * 2);
         } else if (sym.type === 'reductor') {
             drawSeg(-sSize, -sSize * 0.6,  sSize, -sSize * 0.35);
             drawSeg( sSize, -sSize * 0.35, sSize,  sSize * 0.35);
             drawSeg( sSize,  sSize * 0.35, -sSize, sSize * 0.6);
             drawSeg(-sSize,  sSize * 0.6, -sSize, -sSize * 0.6);
         } else if (sym.type === 'brida') {
-            drawSeg(-sSize * 0.25, -sSize, -sSize * 0.25, sSize);
-            drawSeg( sSize * 0.25, -sSize,  sSize * 0.25, sSize);
+            drawSeg(-sSize, -sSize * 0.8, -sSize, sSize * 0.8);
+            drawSeg( sSize, -sSize * 0.8,  sSize, sSize * 0.8);
+            drawSeg(-sSize, -sSize * 0.2,  sSize, -sSize * 0.2);
+            drawSeg(-sSize,  sSize * 0.2,  sSize,  sSize * 0.2);
         } else if (sym.type === 'tapon') {
-            drawSeg(-sSize, 0,  0, 0);
+            drawSeg(-sSize * 2, 0,  0, 0);
             drawSeg(0, -sSize * 0.7, 0, sSize * 0.7);
         } else if (sym.type === 'valvula') {
             drawSeg(-sSize, -sSize * 0.6, -sSize,  sSize * 0.6);
@@ -2802,17 +2828,19 @@ function drawSymbols() {
             const d = s * 0.7071;
             ctx.moveTo(0, 0); ctx.lineTo(d, d);
         } else if (sym.type === 'codo') {
-            ctx.moveTo(-s, 0); ctx.lineTo(0, 0);    // horizontal
-            ctx.lineTo(0, s);                        // vertical
+            ctx.moveTo(-s * 2, 0); ctx.lineTo(0, 0);    // horizontal
+            ctx.lineTo(0, s * 2);                        // vertical
         } else if (sym.type === 'reductor') {
             ctx.moveTo(-s, -s * 0.6); ctx.lineTo(s, -s * 0.35);
             ctx.lineTo(s, s * 0.35);  ctx.lineTo(-s, s * 0.6);
             ctx.closePath();
         } else if (sym.type === 'brida') {
-            ctx.moveTo(-s * 0.25, -s); ctx.lineTo(-s * 0.25, s);
-            ctx.moveTo(s * 0.25, -s);  ctx.lineTo(s * 0.25, s);
+            ctx.moveTo(-s, -s * 0.8); ctx.lineTo(-s, s * 0.8);
+            ctx.moveTo(s, -s * 0.8);  ctx.lineTo(s, s * 0.8);
+            ctx.moveTo(-s, -s * 0.2); ctx.lineTo(s, -s * 0.2);
+            ctx.moveTo(-s, s * 0.2);  ctx.lineTo(s, s * 0.2);
         } else if (sym.type === 'tapon') {
-            ctx.moveTo(-s, 0); ctx.lineTo(0, 0);    // tube reaching end
+            ctx.moveTo(-s * 2, 0); ctx.lineTo(0, 0);    // tube reaching end
             ctx.moveTo(0, -s * 0.7); ctx.lineTo(0, s * 0.7); // vertical cap
         } else if (sym.type === 'quickdrop') {
             ctx.arc(0, 0, s * 0.4, 0, Math.PI * 2); // circle on main line
