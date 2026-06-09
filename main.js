@@ -216,16 +216,16 @@ const CATALOG_AIRPIPE = {
         { code: 'A151', d1: '200mm (8")', label: 'A151: 200mm (8") (Butterfly Valve SS)' }
     ],
     'codo': [
-        { code: '1003', d1: '20mm (3/4")', label: '1003: Codo 20mm (3/4")', L: '3.90"' },
-        { code: '2003', d1: '25mm (1")', label: '2003: Codo 25mm (1")', L: '4.13"' },
-        { code: '4003', d1: '40mm (1 1/2")', label: '4003: Codo 40mm (1 1/2")', L: '5.47"' },
-        { code: '5003', d1: '50mm (2")', label: '5003: Codo 50mm (2")', L: '6.02"' },
-        { code: '6003', d1: '63mm (2 1/2")', label: '6003: Codo 63mm (2 1/2")', L: '5.63"' },
-        { code: '7003', d1: '80mm (3")', label: '7003: Codo 80mm (3")', L: '6.14"' },
-        { code: '8003', d1: '100mm (4")', label: '8003: Codo 100mm (4")', L: '7.64"' },
-        { code: '9003', d1: '150mm (6")', label: '9003: Codo 150mm (6")', L: '10.39"' },
-        { code: 'A003', d1: '200mm (8")', label: 'A003: Codo 200mm (8")', L: '12.32"' },
-        { code: 'M003', d1: '250mm (10")', label: 'M003: Codo 250mm (10")', L: '21.97"' }
+        { code: '1003', d1: '20mm (3/4")', label: '1003: Codo 20mm (3/4")', L: '3.90"', Z1: '1.93"' },
+        { code: '2003', d1: '25mm (1")', label: '2003: Codo 25mm (1")', L: '4.13"', Z1: '2.05"' },
+        { code: '4003', d1: '40mm (1 1/2")', label: '4003: Codo 40mm (1 1/2")', L: '5.47"', Z1: '2.72"' },
+        { code: '5003', d1: '50mm (2")', label: '5003: Codo 50mm (2")', L: '6.02"', Z1: '2.87"' },
+        { code: '6003', d1: '63mm (2 1/2")', label: '6003: Codo 63mm (2 1/2")', L: '5.63"', Z1: '4.13"' },
+        { code: '7003', d1: '80mm (3")', label: '7003: Codo 80mm (3")', L: '6.14"', Z1: '4.33"' },
+        { code: '8003', d1: '100mm (4")', label: '8003: Codo 100mm (4")', L: '7.64"', Z1: '5.51"' },
+        { code: '9003', d1: '150mm (6")', label: '9003: Codo 150mm (6")', L: '10.39"', Z1: '7.28"' },
+        { code: 'A003', d1: '200mm (8")', label: 'A003: Codo 200mm (8")', L: '12.32"', Z1: '8.19"' },
+        { code: 'M003', d1: '250mm (10")', label: 'M003: Codo 250mm (10")', L: '21.97"', Z1: '16.46"' }
     ],
     'tapon': [
         { code: '1006', d1: '20mm (3/4")', label: '1006: Tapón 20mm (3/4")', L: '2.80"' },
@@ -974,8 +974,11 @@ export function generateModifiedDxfBlob() {
             const d = sSize * 0.7071; // sin(45)*sSize
             drawSeg(0, 0, d, -d);
         } else if (sym.type === 'codo') {
-            drawSeg(-sSize * 2, 0,  0, 0);
-            drawSeg(0, 0,  0, -sSize * 2);
+            // Codos use Z1 (Center-to-Face) for leg length if available
+            const catalogZ1 = parseLengthToDxf(sym.Z1 || sym.L);
+            const legSize = catalogZ1 !== null ? catalogZ1 : (sSizeFallback * 2);
+            drawSeg(-legSize, 0,  0, 0);
+            drawSeg(0, 0,  0, -legSize);
         } else if (sym.type === 'reductor') {
             drawSeg(-sSize, -sSize * 0.6,  sSize, -sSize * 0.35);
             drawSeg( sSize, -sSize * 0.35, sSize,  sSize * 0.35);
@@ -2375,6 +2378,7 @@ document.getElementById('float-part')?.addEventListener('change', (e) => {
                     sym.d1 = item.d1;
                     sym.d2 = item.d2;
                     sym.L = item.L;
+                    if (item.Z1) sym.Z1 = item.Z1;
                     found = true;
                     break;
                 }
@@ -2828,8 +2832,10 @@ function drawSymbols() {
             const d = s * 0.7071;
             ctx.moveTo(0, 0); ctx.lineTo(d, d);
         } else if (sym.type === 'codo') {
-            ctx.moveTo(-s * 2, 0); ctx.lineTo(0, 0);    // horizontal
-            ctx.lineTo(0, s * 2);                        // vertical
+            const catalogZ1 = (typeof parseLengthToDxf === 'function') ? parseLengthToDxf(sym.Z1 || sym.L) : null;
+            const legSize = catalogZ1 !== null ? catalogZ1 * viewState.scale : (14 * 2);
+            ctx.moveTo(-legSize, 0); ctx.lineTo(0, 0);    // horizontal
+            ctx.lineTo(0, legSize);                        // vertical
         } else if (sym.type === 'reductor') {
             ctx.moveTo(-s, -s * 0.6); ctx.lineTo(s, -s * 0.35);
             ctx.lineTo(s, s * 0.35);  ctx.lineTo(-s, s * 0.6);
