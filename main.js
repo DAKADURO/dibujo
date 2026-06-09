@@ -79,25 +79,36 @@ let joinPendingEntities = [];  // entities being picked during current join sess
 
 const CATALOG_AIRPIPE = {
     'reductor': [
-        { code: '2121', d1: '25mm (1")', d2: '20mm (3/4")', label: '2121: 25mm (1") x 20mm (3/4")' },
-        { code: '4221', d1: '40mm (1 1/2")', d2: '25mm (1")', label: '4221: 40mm (1 1/2") x 25mm (1")' },
-        { code: '5221', d1: '50mm (2")', d2: '25mm (1")', label: '5221: 50mm (2") x 25mm (1")' },
-        { code: '5421', d1: '50mm (2")', d2: '40mm (1 1/2")', label: '5421: 50mm (2") x 40mm (1 1/2")' },
-        { code: '8421', d1: '63mm (2 1/2")', d2: '40mm (1 1/2")', label: '8421: 63mm (2 1/2") x 40mm (1 1/2")' },
-        { code: '6521', d1: '63mm (2 1/2")', d2: '50mm (2")', label: '6521: 63mm (2 1/2") x 50mm (2")' },
-        { code: '7521', d1: '80mm (3")', d2: '50mm (2")', label: '7521: 80mm (3") x 50mm (2")' },
-        { code: '7621', d1: '80mm (3")', d2: '63mm (2 1/2")', label: '7621: 80mm (3") x 63mm (2 1/2")' },
-        { code: '8621', d1: '100mm (4")', d2: '63mm (2 1/2")', label: '8621: 100mm (4") x 63mm (2 1/2")' },
-        { code: '8721', d1: '100mm (4")', d2: '80mm (3")', label: '8721: 100mm (4") x 80mm (3")' },
-        { code: '9721', d1: '150mm (6")', d2: '80mm (3")', label: '9721: 150mm (6") x 80mm (3")' },
-        { code: '9821', d1: '150mm (6")', d2: '100mm (4")', label: '9821: 150mm (6") x 100mm (4")' },
-        { code: 'A921', d1: '200mm (8")', d2: '150mm (6")', label: 'A921: 200mm (8") x 150mm (6")' }
+        { code: '2121', d1: '25mm (1")', d2: '20mm (3/4")', label: '2121: 25mm (1") x 20mm (3/4")', L: '130 mm' },
+        { code: '4221', d1: '40mm (1 1/2")', d2: '25mm (1")', label: '4221: 40mm (1 1/2") x 25mm (1")', L: '156 mm' },
+        { code: '5221', d1: '50mm (2")', d2: '25mm (1")', label: '5221: 50mm (2") x 25mm (1")', L: '160 mm' },
+        { code: '5421', d1: '50mm (2")', d2: '40mm (1 1/2")', label: '5421: 50mm (2") x 40mm (1 1/2")', L: '172 mm' },
+        { code: '8421', d1: '63mm (2 1/2")', d2: '40mm (1 1/2")', label: '8421: 63mm (2 1/2") x 40mm (1 1/2")', L: '156 mm' },
+        { code: '6521', d1: '63mm (2 1/2")', d2: '50mm (2")', label: '6521: 63mm (2 1/2") x 50mm (2")', L: '157 mm' },
+        { code: '7521', d1: '80mm (3")', d2: '50mm (2")', label: '7521: 80mm (3") x 50mm (2")', L: '158 mm' },
+        { code: '7621', d1: '80mm (3")', d2: '63mm (2 1/2")', label: '7621: 80mm (3") x 63mm (2 1/2")', L: '126 mm' },
+        { code: '8621', d1: '100mm (4")', d2: '63mm (2 1/2")', label: '8621: 100mm (4") x 63mm (2 1/2")', L: '152 mm' },
+        { code: '8721', d1: '100mm (4")', d2: '80mm (3")', label: '8721: 100mm (4") x 80mm (3")', L: '141 mm' },
+        { code: '9721', d1: '150mm (6")', d2: '80mm (3")', label: '9721: 150mm (6") x 80mm (3")', L: '155 mm' },
+        { code: '9821', d1: '150mm (6")', d2: '100mm (4")', label: '9821: 150mm (6") x 100mm (4")', L: '172 mm' },
+        { code: 'A921', d1: '200mm (8")', d2: '150mm (6")', label: 'A921: 200mm (8") x 150mm (6")', L: '170 mm' }
     ],
-    'tee-red': [
-        { code: '2107', d1: '25mm (1")', d2: '20mm (3/4")', label: '2107: 25mm (1") x 20mm (3/4")' },
-        { code: '4207', d1: '40mm (1 1/2")', d2: '25mm (1")', label: '4207: 40mm (1 1/2") x 25mm (1")' },
-        { code: '5207', d1: '50mm (2")', d2: '25mm (1")', label: '5207: 50mm (2") x 25mm (1")' },
-        { code: '5407', d1: '50mm (2")', d2: '40mm (1 1/2")', label: '5407: 50mm (2") x 40mm (1 1/2")' },
+    'tee-igual': [
+        { code: '1005', d1: '20mm (3/4")', label: '1005: Igual 20mm (3/4")', L: '6.26"' },
+        { code: '2005', d1: '25mm (1")', label: '2005: Igual 25mm (1")', L: '6.54"' },
+        { code: '4005', d1: '40mm (1 1/2")', label: '4005: Igual 40mm (1 1/2")', L: '8.58"' },
+        { code: '5005', d1: '50mm (2")', label: '5005: Igual 50mm (2")', L: '9.13"' },
+        { code: '6005', d1: '63mm (2 1/2")', label: '6005: Igual 63mm (2 1/2")', L: '7.87"' },
+        { code: '7005', d1: '80mm (3")', label: '7005: Igual 80mm (3")', L: '8.66"' },
+        { code: '8005', d1: '100mm (4")', label: '8005: Igual 100mm (4")', L: '10.31"' },
+        { code: '9005', d1: '150mm (6")', label: '9005: Igual 150mm (6")', L: '13.07"' },
+        { code: 'A005', d1: '200mm (8")', label: 'A005: Igual 200mm (8")', L: '14.76"' },
+        { code: 'M005', d1: '250mm (10")', label: 'M005: Igual 250mm (10")', L: '17.56"' }
+    ],\n    'tee-red': [
+        { code: '2107', d1: '25mm (1")', d2: '20mm (3/4")', label: '2107: 25mm (1") x 20mm (3/4")', L: '6.81"' },
+        { code: '4207', d1: '40mm (1 1/2")', d2: '25mm (1")', label: '4207: 40mm (1 1/2") x 25mm (1")', L: '7.95"' },
+        { code: '5207', d1: '50mm (2")', d2: '25mm (1")', label: '5207: 50mm (2") x 25mm (1")', L: '8.78"' },
+        { code: '5407', d1: '50mm (2")', d2: '40mm (1 1/2")', label: '5407: 50mm (2") x 40mm (1 1/2")', L: '8.78"' },
         { code: '6407', d1: '63mm (2 1/2")', d2: '40mm (1 1/2")', label: '6407: 63mm (2 1/2") x 40mm (1 1/2")' },
         { code: '6507', d1: '63mm (2 1/2")', d2: '50mm (2")', label: '6507: 63mm (2 1/2") x 50mm (2")' },
         { code: '7407', d1: '80mm (3")', d2: '40mm (1 1/2")', label: '7407: 80mm (3") x 40mm (1 1/2")' },
@@ -123,45 +134,47 @@ const CATALOG_AIRPIPE = {
     ],
     'quickdrop': [
         // Straight Quick Drop
-        { code: '2110', d1: '25mm (1")', d2: '20mm (3/4")', label: '2110: 25mm (1") x 20mm (3/4") (Str)' },
-        { code: '2210', d1: '25mm (1")', d2: '25mm (1")', label: '2210: 25mm (1") x 25mm (1") (Str)' },
-        { code: '4110', d1: '40mm (1 1/2")', d2: '20mm (3/4")', label: '4110: 40mm (1 1/2") x 20mm (3/4") (Str)' },
-        { code: '4210', d1: '40mm (1 1/2")', d2: '25mm (1")', label: '4210: 40mm (1 1/2") x 25mm (1") (Str)' },
-        { code: '5110', d1: '50mm (2")', d2: '20mm (3/4")', label: '5110: 50mm (2") x 20mm (3/4") (Str)' },
-        { code: '5210', d1: '50mm (2")', d2: '25mm (1")', label: '5210: 50mm (2") x 25mm (1") (Str)' },
-        { code: '6110', d1: '63mm (2 1/2")', d2: '20mm (3/4")', label: '6110: 63mm (2 1/2") x 20mm (3/4") (Str)' },
-        { code: '6210', d1: '63mm (2 1/2")', d2: '25mm (1")', label: '6210: 63mm (2 1/2") x 25mm (1") (Str)' },
-        { code: '7110', d1: '80mm (3")', d2: '20mm (3/4")', label: '7110: 80mm (3") x 20mm (3/4") (Str)' },
-        { code: '7210', d1: '80mm (3")', d2: '25mm (1")', label: '7210: 80mm (3") x 25mm (1") (Str)' },
-        { code: '8110', d1: '100mm (4")', d2: '20mm (3/4")', label: '8110: 100mm (4") x 20mm (3/4") (Str)' },
-        { code: '8210', d1: '100mm (4")', d2: '25mm (1")', label: '8210: 100mm (4") x 25mm (1") (Str)' },
-        { code: '9110', d1: '150mm (6")', d2: '20mm (3/4")', label: '9110: 150mm (6") x 20mm (3/4") (Str)' },
-        { code: '9210', d1: '150mm (6")', d2: '25mm (1")', label: '9210: 150mm (6") x 25mm (1") (Str)' },
-        { code: 'A210', d1: '200mm (8")', d2: '25mm (1")', label: 'A210: 200mm (8") x 25mm (1") (Str)' },
-        { code: '8410', d1: '100mm (4")', d2: '40mm (1 1/2")', label: '8410: 100mm (4") x 40mm (1 1/2") (Str)' },
-        { code: '9410', d1: '150mm (6")', d2: '40mm (1 1/2")', label: '9410: 150mm (6") x 40mm (1 1/2") (Str)' },
-        { code: '9510', d1: '150mm (6")', d2: '50mm (2")', label: '9510: 150mm (6") x 50mm (2") (Str)' },
-        { code: 'A410', d1: '200mm (8")', d2: '50mm (2")', label: 'A410: 200mm (8") x 50mm (2") (Str)' },
-        { code: 'A510', d1: '200mm (8")', d2: '50mm (2")', label: 'A510: 200mm (8") x 50mm (2") (Str)' },
+        { code: '2110', d1: '25mm (1")', d2: '20mm (3/4")', label: '2110: 25mm (1") x 20mm (3/4") (Str)', L: '110 mm' },
+        { code: '2210', d1: '25mm (1")', d2: '25mm (1")', label: '2210: 25mm (1") x 25mm (1") (Str)', L: '110 mm' },
+        { code: '4110', d1: '40mm (1 1/2")', d2: '20mm (3/4")', label: '4110: 40mm (1 1/2") x 20mm (3/4") (Str)', L: '125 mm' },
+        { code: '4210', d1: '40mm (1 1/2")', d2: '25mm (1")', label: '4210: 40mm (1 1/2") x 25mm (1") (Str)', L: '125 mm' },
+        { code: '5110', d1: '50mm (2")', d2: '20mm (3/4")', label: '5110: 50mm (2") x 20mm (3/4") (Str)', L: '129 mm' },
+        { code: '5210', d1: '50mm (2")', d2: '25mm (1")', label: '5210: 50mm (2") x 25mm (1") (Str)', L: '129 mm' },
+        { code: '6110', d1: '63mm (2 1/2")', d2: '20mm (3/4")', label: '6110: 63mm (2 1/2") x 20mm (3/4") (Str)', L: '152 mm' },
+        { code: '6210', d1: '63mm (2 1/2")', d2: '25mm (1")', label: '6210: 63mm (2 1/2") x 25mm (1") (Str)', L: '152 mm' },
+        { code: '7110', d1: '80mm (3")', d2: '20mm (3/4")', label: '7110: 80mm (3") x 20mm (3/4") (Str)', L: '158 mm' },
+        { code: '7210', d1: '80mm (3")', d2: '25mm (1")', label: '7210: 80mm (3") x 25mm (1") (Str)', L: '158 mm' },
+        { code: '8110', d1: '100mm (4")', d2: '20mm (3/4")', label: '8110: 100mm (4") x 20mm (3/4") (Str)', L: '154 mm' },
+        { code: '8210', d1: '100mm (4")', d2: '25mm (1")', label: '8210: 100mm (4") x 25mm (1") (Str)', L: '154 mm' },
+        { code: '9110', d1: '150mm (6")', d2: '20mm (3/4")', label: '9110: 150mm (6") x 20mm (3/4") (Str)', L: '202 mm' },
+        { code: '9210', d1: '150mm (6")', d2: '25mm (1")', label: '9210: 150mm (6") x 25mm (1") (Str)', L: '202 mm' },
+        { code: 'A210', d1: '200mm (8")', d2: '25mm (1")', label: 'A210: 200mm (8") x 25mm (1") (Str)', L: '256 mm' },
+        { code: '8410', d1: '100mm (4")', d2: '40mm (1 1/2")', label: '8410: 100mm (4") x 40mm (1 1/2") (Str)', L: '204 mm' },
+        { code: '9410', d1: '150mm (6")', d2: '40mm (1 1/2")', label: '9410: 150mm (6") x 40mm (1 1/2") (Str)', L: '267 mm' },
+        { code: '9510', d1: '150mm (6")', d2: '50mm (2")', label: '9510: 150mm (6") x 50mm (2") (Str)', L: '255 mm' },
+        { code: 'A410', d1: '200mm (8")', d2: '50mm (2")', label: 'A410: 200mm (8") x 50mm (2") (Str)', L: '329 mm' },
+        { code: 'A510', d1: '200mm (8")', d2: '50mm (2")', label: 'A510: 200mm (8") x 50mm (2") (Str)', L: '330 mm' },
         // Female Threaded Quick Drop
-        { code: '2011', d1: '25mm (1")', d2: '1/2"', label: '2011: 25mm (1") x 1/2" (NPT Hembra)' },
-        { code: '4011', d1: '40mm (1 1/2")', d2: '1/2"', label: '4011: 40mm (1 1/2") x 1/2" (NPT Hembra)' },
-        { code: '4111', d1: '40mm (1 1/2")', d2: '3/4"', label: '4111: 40mm (1 1/2") x 3/4" (NPT Hembra)' },
-        { code: '5011', d1: '50mm (2")', d2: '1/2"', label: '5011: 50mm (2") x 1/2" (NPT Hembra)' },
-        { code: '5111', d1: '50mm (2")', d2: '3/4"', label: '5111: 50mm (2") x 3/4" (NPT Hembra)' },
-        { code: '6011', d1: '63mm (2 1/2")', d2: '1/2"', label: '6011: 63mm (2 1/2") x 1/2" (NPT Hembra)' },
-        { code: '6111', d1: '63mm (2 1/2")', d2: '3/4"', label: '6111: 63mm (2 1/2") x 3/4" (NPT Hembra)' },
-        { code: '7011', d1: '80mm (3")', d2: '1/2"', label: '7011: 80mm (3") x 1/2" (NPT Hembra)' },
-        { code: '7111', d1: '80mm (3")', d2: '3/4"', label: '7111: 80mm (3") x 3/4" (NPT Hembra)' },
-        { code: '8011', d1: '100mm (4")', d2: '3/4"', label: '8011: 100mm (4") x 3/4" (NPT Hembra)' },
-        { code: '9011', d1: '150mm (6")', d2: '3/4"', label: '9011: 150mm (6") x 3/4" (NPT Hembra)' }
+        { code: '2011', d1: '25mm (1")', d2: '1/2"', label: '2011: 25mm (1") x 1/2" (NPT Hembra)', L: '54 mm' },
+        { code: '4011', d1: '40mm (1 1/2")', d2: '1/2"', label: '4011: 40mm (1 1/2") x 1/2" (NPT Hembra)', L: '72 mm' },
+        { code: '4111', d1: '40mm (1 1/2")', d2: '3/4"', label: '4111: 40mm (1 1/2") x 3/4" (NPT Hembra)', L: '72 mm' },
+        { code: '5011', d1: '50mm (2")', d2: '1/2"', label: '5011: 50mm (2") x 1/2" (NPT Hembra)', L: '83 mm' },
+        { code: '5111', d1: '50mm (2")', d2: '3/4"', label: '5111: 50mm (2") x 3/4" (NPT Hembra)', L: '83 mm' },
+        { code: '6011', d1: '63mm (2 1/2")', d2: '1/2"', label: '6011: 63mm (2 1/2") x 1/2" (NPT Hembra)', L: '126 mm' },
+        { code: '6111', d1: '63mm (2 1/2")', d2: '3/4"', label: '6111: 63mm (2 1/2") x 3/4" (NPT Hembra)', L: '126 mm' },
+        { code: '7011', d1: '80mm (3")', d2: '1/2"', label: '7011: 80mm (3") x 1/2" (NPT Hembra)', L: '138 mm' },
+        { code: '7111', d1: '80mm (3")', d2: '3/4"', label: '7111: 80mm (3") x 3/4" (NPT Hembra)', L: '138 mm' },
+        { code: '8011', d1: '100mm (4")', d2: '3/4"', label: '8011: 100mm (4") x 3/4" (NPT Hembra)', L: '170 mm' },
+        { code: '9011', d1: '150mm (6")', d2: '3/4"', label: '9011: 150mm (6") x 3/4" (NPT Hembra)', L: '219 mm' }
     ],
     'valvula': [
         // Threaded Ball Valve (Brass)
-        { code: '1052', d1: '20mm (3/4")', d2: '20mm (3/4")', label: '1052: 20mm (3/4") (Brass Ball Valve)' },
-        { code: '2052', d1: '25mm (1")', d2: '25mm (1")', label: '2052: 25mm (1") (Brass Ball Valve)' },
-        { code: '4052', d1: '40mm (1 1/2")', d2: '40mm (1 1/2")', label: '4052: 40mm (1 1/2") (Brass Ball Valve)' },
-        { code: '5052', d1: '50mm (2")', d2: '50mm (2")', label: '5052: 50mm (2") (Brass Ball Valve)' },
+        { code: '1052', d1: '20mm (3/4")', d2: '20mm (3/4")', label: '1052: 20mm (3/4") (Brass Ball Valve)', L: '6.46"' },
+        { code: '2052', d1: '25mm (1")', d2: '25mm (1")', label: '2052: 25mm (1") (Brass Ball Valve)', L: '6.69"' },
+        { code: '4052', d1: '40mm (1 1/2")', d2: '40mm (1 1/2")', label: '4052: 40mm (1 1/2") (Brass Ball Valve)', L: '9.13"' },
+        { code: '5052', d1: '50mm (2")', d2: '50mm (2")', label: '5052: 50mm (2") (Brass Ball Valve)', L: '10.67"' },
+        { code: '6052', d1: '63mm (2 1/2")', d2: '63mm (2 1/2")', label: '6052: 63mm (2 1/2") (Brass Ball Valve)', L: '8.11"' },
+        // Dummy to match replacement if needed: { code: '5052', d1: '50mm (2")', d2: '50mm (2")', label: '5052: 50mm (2") (Brass Ball Valve)', L: '10.67"' },
         // Threaded Ball Valve (Aluminium)
         { code: '0073', d1: '25mm (1")', d2: '25mm (1")', label: '0073: 25mm (1") (Alum Ball Valve, Female)' },
         { code: '0173', d1: '40mm (1 1/2")', d2: '40mm (1 1/2")', label: '0173: 40mm (1 1/2") (Alum Ball Valve, Female)' },
@@ -173,14 +186,16 @@ const CATALOG_AIRPIPE = {
         { code: '4073', d1: '40mm (1 1/2")', d2: '40mm (1 1/2")', label: '4073: 40mm (1 1/2") (Alum Ball Valve, Female)' },
         { code: '5073', d1: '50mm (2")', d2: '50mm (2")', label: '5073: 50mm (2") (Alum Ball Valve, Female)' },
         // Quick Connect Valve - One-port Female Wall Bracket
-        { code: '1252', d1: '20mm (3/4")', label: '1252: 20mm (3/4") (1-port Wall Bracket)' },
-        { code: '2252', d1: '25mm (1")', label: '2252: 25mm (1") (1-port Wall Bracket)' },
-        { code: '2452', d1: '25mm (1")', label: '2452: 25mm (1") (1-port Wall Bracket)' },
-        { code: '4452', d1: '40mm (1 1/2")', label: '4452: 40mm (1 1/2") (1-port Wall Bracket)' },
+        { code: '1252', d1: '20mm (3/4")', label: '1252: 20mm (3/4") (1-port Wall Bracket)', L: '4.13"' },
+        { code: '2252', d1: '25mm (1")', label: '2252: 25mm (1") (1-port Wall Bracket)', L: '4.49"' },
+        { code: '2452', d1: '25mm (1")', label: '2452: 25mm (1") (1-port Wall Bracket)', L: '4.53"' },
+        { code: '4452', d1: '40mm (1 1/2")', label: '4452: 40mm (1 1/2") (1-port Wall Bracket)', L: '6.10"' },
+        { code: '5552', d1: '50mm (2")', label: '5552: 50mm (2") (1-port Wall Bracket)', L: '6.54"' },
+        { code: '6652', d1: '63mm (2 1/2")', label: '6652: 63mm (2 1/2") (1-port Wall Bracket)', L: '6.3"' },
         { code: '6552', d1: '50mm (2")', label: '6552: 50mm (2") (1-port Wall Bracket)' },
         // Quick Connect Valve - Two-port Female Wall Bracket
-        { code: '1152', d1: '20mm (3/4")', label: '1152: 20mm (3/4") (2-port Wall Bracket)' },
-        { code: '2152', d1: '25mm (1")', label: '2152: 25mm (1") (2-port Wall Bracket)' },
+        { code: '1152', d1: '20mm (3/4")', label: '1152: 20mm (3/4") (2-port Wall Bracket)', L: '5.28"' },
+        { code: '2152', d1: '25mm (1")', label: '2152: 25mm (1") (2-port Wall Bracket)', L: '5.63"' },
         // Quick Connect Valve - Male Threaded Quick Connect Valve
         { code: '1352', d1: '20mm (3/4")', label: '1352: 20mm (3/4") (Male QC Valve)' },
         { code: '2352', d1: '25mm (1")', label: '2352: 25mm (1") (Male QC Valve)' },
@@ -212,22 +227,22 @@ const CATALOG_AIRPIPE = {
     ],
     'brida': [
         // ANSI Aluminum Flange
-        { code: '6170', d1: '63mm', d2: 'Flange 65', label: '6170: 63mm x Flange 65 (Alum, M16)' },
-        { code: '7170', d1: '80mm', d2: 'Flange 80', label: '7170: 80mm x Flange 80 (Alum, M16)' },
-        { code: '8170', d1: '100mm', d2: 'Flange 100', label: '8170: 100mm x Flange 100 (Alum, M16)' },
-        { code: '9170', d1: '150mm', d2: 'Flange 150', label: '9170: 150mm x Flange 150 (Alum, M20)' },
-        { code: 'A170', d1: '200mm', d2: 'Flange 200', label: 'A170: 200mm x Flange 200 (Alum, M20)' },
+        { code: '6170', d1: '63mm', d2: 'Flange 65', label: '6170: 63mm x Flange 65 (Alum, M16)', L: '85 mm' },
+        { code: '7170', d1: '80mm', d2: 'Flange 80', label: '7170: 80mm x Flange 80 (Alum, M16)', L: '82 mm' },
+        { code: '8170', d1: '100mm', d2: 'Flange 100', label: '8170: 100mm x Flange 100 (Alum, M16)', L: '92 mm' },
+        { code: '9170', d1: '150mm', d2: 'Flange 150', label: '9170: 150mm x Flange 150 (Alum, M20)', L: '100 mm' },
+        { code: 'A170', d1: '200mm', d2: 'Flange 200', label: 'A170: 200mm x Flange 200 (Alum, M20)', L: '109 mm' },
 
         // ANSI Aluminum Reducing Flange
-        { code: '7671', d1: '63mm', d2: 'Flange 80', label: '7671: 63mm x Flange 80 (Alum Red, M16)' },
-        { code: '8671', d1: '63mm', d2: 'Flange 100', label: '8671: 63mm x Flange 100 (Alum Red, M16)' },
-        { code: '6771', d1: '80mm', d2: 'Flange 63', label: '6771: 80mm x Flange 63 (Alum Red, M16)' },
-        { code: '8771', d1: '80mm', d2: 'Flange 100', label: '8771: 80mm x Flange 100 (Alum Red, M16)' },
-        { code: '0771', d1: '80mm', d2: 'Flange 125', label: '0771: 80mm x Flange 125 (Alum Red, M16)' },
-        { code: '7871', d1: '100mm', d2: 'Flange 80', label: '7871: 100mm x Flange 80 (Alum Red, M16)' },
-        { code: '0871', d1: '100mm', d2: 'Flange 125', label: '0871: 100mm x Flange 125 (Alum Red, M16)' },
-        { code: '9871', d1: '100mm', d2: 'Flange 150', label: '9871: 100mm x Flange 150 (Alum Red, M16)' },
-        { code: '0971', d1: '150mm', d2: 'Flange 125', label: '0971: 150mm x Flange 125 (Alum Red, M20)' },
+        { code: '7671', d1: '63mm', d2: 'Flange 80', label: '7671: 63mm x Flange 80 (Alum Red, M16)', L: '85 mm' },
+        { code: '8671', d1: '63mm', d2: 'Flange 100', label: '8671: 63mm x Flange 100 (Alum Red, M16)', L: '87 mm' },
+        { code: '6771', d1: '80mm', d2: 'Flange 63', label: '6771: 80mm x Flange 63 (Alum Red, M16)', L: '87 mm' },
+        { code: '8771', d1: '80mm', d2: 'Flange 100', label: '8771: 80mm x Flange 100 (Alum Red, M16)', L: '84 mm' },
+        { code: '0771', d1: '80mm', d2: 'Flange 125', label: '0771: 80mm x Flange 125 (Alum Red, M16)', L: '84 mm' },
+        { code: '7871', d1: '100mm', d2: 'Flange 80', label: '7871: 100mm x Flange 80 (Alum Red, M16)', L: '92 mm' },
+        { code: '0871', d1: '100mm', d2: 'Flange 125', label: '0871: 100mm x Flange 125 (Alum Red, M16)', L: '92 mm' },
+        { code: '9871', d1: '100mm', d2: 'Flange 150', label: '9871: 100mm x Flange 150 (Alum Red, M16)', L: '92 mm' },
+        { code: '0971', d1: '150mm', d2: 'Flange 125', label: '0971: 150mm x Flange 125 (Alum Red, M20)', L: '100 mm' },
 
         // ANSI Female Threaded Flange (Stainless Steel)
         { code: '2270', d1: '25mm', d2: '1"', label: '2270: 25mm x 1" NPT (SS Female, M14)' },
@@ -2320,13 +2335,15 @@ document.getElementById('float-part')?.addEventListener('change', (e) => {
         } else if (val.startsWith('code:')) {
             const code = val.replace('code:', '');
             sym.code = code;
-            // Find the item in catalog to set d1 and d2
+            // Find the item in catalog to set d1, d2, and L
             let found = false;
-            for (const cat of ['reductor', 'tee-red', 'tee-lat']) {
+            for (const cat of Object.keys(CATALOG_AIRPIPE)) {
+                if (cat === 'standard') continue;
                 const item = CATALOG_AIRPIPE[cat].find(c => c.code === code);
                 if (item) {
                     sym.d1 = item.d1;
                     sym.d2 = item.d2;
+                    sym.L = item.L;
                     found = true;
                     break;
                 }

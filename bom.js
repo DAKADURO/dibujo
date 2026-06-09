@@ -176,6 +176,8 @@ export function generateBOM(dxfData, virtualCouplings = [], pipingSymbols = [], 
             else if (sym.d1) label += ` ${sym.d1}`;
             else if (sym.d2) label += ` ${sym.d2}`;
             
+            if (sym.L) label += ` [L: ${sym.L}]`;
+            
             const key = `Manual_${sym.type}_${label}`;
             if (!fittingCounts[key]) {
                 fittingCounts[key] = {
