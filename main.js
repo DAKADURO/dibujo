@@ -3373,6 +3373,22 @@ function parseLengthToDxf(L) {
     return valMm; // 'mm' default
 }
 
+function migrateSymbolData(s) {
+    if (s && s.code) {
+        for (const cat of Object.keys(CATALOG_AIRPIPE)) {
+            if (cat === 'standard') continue;
+            const item = CATALOG_AIRPIPE[cat].find(c => c.code === s.code);
+            if (item) {
+                // Ensure L and Z1 match the latest catalog exactly
+                s.L = item.L;
+                if (item.Z1) s.Z1 = item.Z1;
+                break;
+            }
+        }
+    }
+    return { ...s, selected: false };
+}
+
 let isRemoteUpdate = false;
 let lastUpdateTime = 0;
 let unsubscribeFirebase = null;
@@ -3415,7 +3431,7 @@ function setupFirebaseSync() {
             }
             
             pipingSymbols.length = 0;
-            if (data.symbols) data.symbols.forEach(s => pipingSymbols.push({ ...s, selected: false }));
+            if (data.symbols) data.symbols.forEach(s => pipingSymbols.push(migrateSymbolData(s)));
             if (data.assignedLines) assignedLines = data.assignedLines; else assignedLines = [];
             
             if (window.loadFabricState && data.fabricState) {
@@ -3574,7 +3590,7 @@ function loadAnnotations() {
             }
             if (data.symbols) {
                 pipingSymbols.length = 0;
-                data.symbols.forEach(s => pipingSymbols.push({ ...s, selected: false }));
+                data.symbols.forEach(s => pipingSymbols.push(migrateSymbolData(s)));
             }
             if (window.loadFabricState && data.fabricState) {
                 window.loadFabricState(data.fabricState);
@@ -4114,11 +4130,11 @@ document.getElementById('project-input')?.addEventListener('change', (e) => {
                 pipingSymbols.length = 0;
                 data.symbols.forEach(s => {
                     if (s && typeof s === 'object') {
-                        pipingSymbols.push({
+                        pipingSymbols.push(migrateSymbolData({
                             type: s.type, dxfX: s.dxfX, dxfY: s.dxfY,
                             angle: s.angle || 0, d1: s.d1, d2: s.d2,
-                            code: s.code, color: s.color, selected: false
-                        });
+                            code: s.code, color: s.color
+                        }));
                     }
                 });
             }
