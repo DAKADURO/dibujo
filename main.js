@@ -3764,11 +3764,9 @@ canvas.addEventListener('mousedown', (e) => {
         // instead of its center overlapping the other symbol.
         let dxfPt;
         if (currentSnapPoint && currentSnapPoint.isSymbolPort) {
-            const halfSizeDxf = 14 / viewState.scale;
-            dxfPt = {
-                x: currentSnapPoint.x + (currentSnapPoint.outDxfX || 0) * halfSizeDxf,
-                y: currentSnapPoint.y + (currentSnapPoint.outDxfY || 0) * halfSizeDxf
-            };
+            // Port coordinates already point to the correct attachment position.
+            // Place the new symbol's center directly at the port.
+            dxfPt = { x: currentSnapPoint.x, y: currentSnapPoint.y };
         } else {
             dxfPt = currentSnapPoint ? { ...currentSnapPoint } : canvasToDxf(cx, cy);
         }
