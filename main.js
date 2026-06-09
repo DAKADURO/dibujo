@@ -919,8 +919,8 @@ export function generateModifiedDxfBlob() {
     }
 
     // ── 4. Piping Symbols ────────────────────────────────────────────────────
-    // Symbol size in DXF drawing units. Multiplier 2 keeps symbols small but visible.
-    const sSize = Math.max(drawingScale * 2, 0.3);
+    // sSize fallback for symbols without a catalog L value.
+    const sSizeFallback = Math.max(drawingScale * 2, 0.3);
 
     for (const sym of pipingSymbols) {
         const cx = sym.dxfX, cy = sym.dxfY;
@@ -929,6 +929,10 @@ export function generateModifiedDxfBlob() {
         // dxfAngle negates because DXF Y-axis is upward (opposite to canvas).
         const a = sym.angle || 0;   // radians
         const dxfAngle = -a;        // flip for DXF coordinate system
+
+        // Use real catalog length if available, otherwise fall back to drawing scale.
+        const catalogL = parseLengthToDxf(sym.L);
+        const sSize = catalogL !== null ? catalogL / 2 : sSizeFallback;
 
         const drawSeg = (x1, y1, x2, y2) => {
             const pa = rotatePt(cx, cy, cx + x1, cy + y1, dxfAngle);
@@ -2756,8 +2760,6 @@ function drawCouplings() {
 //  PIPING SYMBOLS — drawn directly on DXF canvas
 // ══════════════════════════════════════════════════
 
-const SYM_SIZE = 14; // half-size in screen pixels
-
 function drawSymbols() {
     if (pipingSymbols.length === 0) return;
     ctx.save();
@@ -2775,17 +2777,20 @@ function drawSymbols() {
         
         const baseColor = sym.selected ? '#fbbf24' : (sym.color || '#06b6d4');
         ctx.strokeStyle = baseColor;
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = 2;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         
         const exportScale = window.exportScaleFactor || 1;
-        // Scale down symbol visually when zoomed out to avoid clutter
-        let scaleFactor = Math.min(1.0, viewState.scale / 15.0);
-        if (isNaN(scaleFactor) || scaleFactor <= 0.01) scaleFactor = 1.0;
-        ctx.scale(scaleFactor * exportScale, scaleFactor * exportScale);
+        ctx.scale(exportScale, exportScale);
         
-        const s = SYM_SIZE;
+        // Use the catalog physical length L to compute screen half-size.
+        // parseLengthToDxf returns value in DXF document units; multiply by
+        // viewState.scale to convert to canvas pixels.
+        const catalogL = (typeof parseLengthToDxf === 'function') ? parseLengthToDxf(sym.L) : null;
+        const s = catalogL !== null
+            ? (catalogL / 2) * viewState.scale   // half-length in screen pixels
+            : 14;                                  // fallback 14px for unsized symbols
         
         ctx.beginPath();
         if (sym.type === 'tee') {
@@ -2832,11 +2837,15 @@ function drawSymbols() {
         else if (sym.d1 && sym.d2) label += ` ${sym.d1}x${sym.d2}`;
         else if (sym.d1) label += ` ${sym.d1}`;
         else if (sym.d2) label += ` ${sym.d2}`;
+        if (sym.L) label += ` [${sym.L}]`;
         
+        // Draw label above the symbol. For sized symbols s is in screen pixels;
+        // for unsized symbols s is the 14px fallback, so offset is consistent.
+        const labelOffset = Math.max(s + 4, 18);
         ctx.font = 'bold 10px "Inter", sans-serif';
         ctx.fillStyle = baseColor;
         ctx.textAlign = 'center';
-        ctx.fillText(label, 0, -s - 4);
+        ctx.fillText(label, 0, -labelOffset);
         
         // Selection ring
         if (sym.selected) {
@@ -2855,9 +2864,14 @@ function drawSymbols() {
 }
 
 function findSymbolAt(cx, cy) {
-    const hitRadius = SYM_SIZE + 8;
+    // Hit radius: use catalog length for sized symbols, or fixed 22px fallback
     for (let i = pipingSymbols.length - 1; i >= 0; i--) {
-        const sp = dxfToScreen(pipingSymbols[i].dxfX, pipingSymbols[i].dxfY);
+        const sym = pipingSymbols[i];
+        const sp = dxfToScreen(sym.dxfX, sym.dxfY);
+        const catalogL = parseLengthToDxf(sym.L);
+        const hitRadius = catalogL !== null
+            ? Math.max((catalogL / 2) * viewState.scale + 8, 14)
+            : 22;
         const dist = Math.hypot(cx - sp.x, cy - sp.y);
         if (dist < hitRadius) return i;
     }
@@ -3291,6 +3305,33 @@ function detectUnits() {
     // If the entire drawing is less than 1000 units wide, it's highly likely to be in meters.
     if (width > 0 && width < 1000) return 'm'; 
     return 'mm';
+}
+
+/**
+ * Parse a catalog L string (e.g. '8.58"' or '130 mm') and return its
+ * value in the DXF document's native unit (currentUnit: 'mm', 'in', 'm').
+ * Returns null if L is falsy or unparseable.
+ */
+function parseLengthToDxf(L) {
+    if (!L || typeof L !== 'string') return null;
+    let valMm = null;
+
+    // Match inches: '8.58"' or '8.58in'
+    const inMatch = L.match(/([\d.]+)\s*["in]/);
+    if (inMatch) {
+        valMm = parseFloat(inMatch[1]) * 25.4;
+    } else {
+        // Match millimetres: '130 mm'
+        const mmMatch = L.match(/([\d.]+)\s*mm/i);
+        if (mmMatch) valMm = parseFloat(mmMatch[1]);
+    }
+
+    if (valMm === null || isNaN(valMm) || valMm <= 0) return null;
+
+    // Convert mm → document unit
+    if (currentUnit === 'm')  return valMm / 1000;
+    if (currentUnit === 'in') return valMm / 25.4;
+    return valMm; // 'mm' default
 }
 
 let isRemoteUpdate = false;
