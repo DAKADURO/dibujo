@@ -1727,8 +1727,12 @@ function drawSnapIndicator() {
 function getSymbolConnectionPortsDxf(sym) {
     if (sym.dxfX === undefined || sym.dxfY === undefined) return [];
 
-    const scaleFactor = Math.min(1.0, viewState.scale / 15.0) || 1.0;
-    const s = SYM_SIZE * scaleFactor; // screen-pixel half-size of the symbol
+    const catalogL = (typeof parseLengthToDxf === 'function') ? parseLengthToDxf(sym.L) : null;
+    const s = catalogL !== null ? (catalogL / 2) * viewState.scale : 14;
+    const catalogZ1 = (typeof parseLengthToDxf === 'function') ? parseLengthToDxf(sym.Z1 || sym.L) : null;
+    const legSize = catalogZ1 !== null ? catalogZ1 * viewState.scale : 28;
+    const taponSize = catalogL !== null ? catalogL * viewState.scale : 28;
+
     const a = sym.angle || 0;         // rotation in radians
     const cos = Math.cos(a);
     const sin = Math.sin(a);
@@ -1767,12 +1771,12 @@ function getSymbolConnectionPortsDxf(sym) {
             const d = s * 0.7071; // 45 deg branch
             return [portAt(-s, 0), portAt(s, 0), portAt(d, -d)];
         }
-        case 'codo':     return [portAt(-s, 0), portAt(0, s)];
+        case 'codo':     return [portAt(-legSize, 0), portAt(0, legSize)];
         case 'reductor': return [portAt(-s, 0), portAt(s, 0)];
         case 'brida':
         case 'valvula':
             return [portAt(-s, 0), portAt(s, 0)];
-        case 'tapon':    return [portAt(-s, 0)];
+        case 'tapon':    return [portAt(-taponSize, 0)];
         default:         return [];
     }
 }
@@ -3760,8 +3764,7 @@ canvas.addEventListener('mousedown', (e) => {
         // instead of its center overlapping the other symbol.
         let dxfPt;
         if (currentSnapPoint && currentSnapPoint.isSymbolPort) {
-            const scaleFactor = Math.min(1.0, viewState.scale / 15.0) || 1.0;
-            const halfSizeDxf  = (SYM_SIZE * scaleFactor) / viewState.scale;
+            const halfSizeDxf = 14 / viewState.scale;
             dxfPt = {
                 x: currentSnapPoint.x + (currentSnapPoint.outDxfX || 0) * halfSizeDxf,
                 y: currentSnapPoint.y + (currentSnapPoint.outDxfY || 0) * halfSizeDxf
