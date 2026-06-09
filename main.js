@@ -2278,6 +2278,8 @@ function updateSymbolPropertiesUI(x, y) {
                 options = CATALOG_AIRPIPE['quickdrop'];
             } else if (sym.type === 'valvula') {
                 options = CATALOG_AIRPIPE['valvula'];
+            } else if (sym.type === 'brida') {
+                options = CATALOG_AIRPIPE['brida'];
             } else {
                 options = CATALOG_AIRPIPE['standard'];
             }
