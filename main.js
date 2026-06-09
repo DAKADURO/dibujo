@@ -209,6 +209,63 @@ const CATALOG_AIRPIPE = {
         { d1: '100mm (4")', label: '100mm (4")' },
         { d1: '150mm (6")', label: '150mm (6")' },
         { d1: '200mm (8")', label: '200mm (8")' }
+    ],
+    'brida': [
+        // ANSI Aluminum Flange
+        { code: '6170', d1: '63mm', d2: 'Flange 65', label: '6170: 63mm x Flange 65 (Alum, M16)' },
+        { code: '7170', d1: '80mm', d2: 'Flange 80', label: '7170: 80mm x Flange 80 (Alum, M16)' },
+        { code: '8170', d1: '100mm', d2: 'Flange 100', label: '8170: 100mm x Flange 100 (Alum, M16)' },
+        { code: '9170', d1: '150mm', d2: 'Flange 150', label: '9170: 150mm x Flange 150 (Alum, M20)' },
+        { code: 'A170', d1: '200mm', d2: 'Flange 200', label: 'A170: 200mm x Flange 200 (Alum, M20)' },
+
+        // ANSI Aluminum Reducing Flange
+        { code: '7671', d1: '63mm', d2: 'Flange 80', label: '7671: 63mm x Flange 80 (Alum Red, M16)' },
+        { code: '8671', d1: '63mm', d2: 'Flange 100', label: '8671: 63mm x Flange 100 (Alum Red, M16)' },
+        { code: '6771', d1: '80mm', d2: 'Flange 63', label: '6771: 80mm x Flange 63 (Alum Red, M16)' },
+        { code: '8771', d1: '80mm', d2: 'Flange 100', label: '8771: 80mm x Flange 100 (Alum Red, M16)' },
+        { code: '0771', d1: '80mm', d2: 'Flange 125', label: '0771: 80mm x Flange 125 (Alum Red, M16)' },
+        { code: '7871', d1: '100mm', d2: 'Flange 80', label: '7871: 100mm x Flange 80 (Alum Red, M16)' },
+        { code: '0871', d1: '100mm', d2: 'Flange 125', label: '0871: 100mm x Flange 125 (Alum Red, M16)' },
+        { code: '9871', d1: '100mm', d2: 'Flange 150', label: '9871: 100mm x Flange 150 (Alum Red, M16)' },
+        { code: '0971', d1: '150mm', d2: 'Flange 125', label: '0971: 150mm x Flange 125 (Alum Red, M20)' },
+
+        // ANSI Female Threaded Flange (Stainless Steel)
+        { code: '2270', d1: '25mm', d2: '1"', label: '2270: 25mm x 1" NPT (SS Female, M14)' },
+        { code: '4470', d1: '40mm', d2: '1 1/2"', label: '4470: 40mm x 1 1/2" NPT (SS Female, M14)' },
+        { code: '5570', d1: '50mm', d2: '2"', label: '5570: 50mm x 2" NPT (SS Female, M16)' },
+        { code: '6270', d1: '63mm', d2: '1"', label: '6270: 63mm x 1" NPT (SS Female, M16)' },
+        { code: '6470', d1: '63mm', d2: '1 1/2"', label: '6470: 63mm x 1 1/2" NPT (SS Female, M16)' },
+        { code: '6570', d1: '63mm', d2: '2"', label: '6570: 63mm x 2" NPT (SS Female, M16)' },
+        { code: '7270', d1: '80mm', d2: '1"', label: '7270: 80mm x 1" NPT (SS Female, M16)' },
+        { code: '7470', d1: '80mm', d2: '1 1/2"', label: '7470: 80mm x 1 1/2" NPT (SS Female, M16)' },
+        { code: '7570', d1: '80mm', d2: '2"', label: '7570: 80mm x 2" NPT (SS Female, M16)' },
+        { code: '7670', d1: '80mm', d2: '2 1/2"', label: '7670: 80mm x 2 1/2" NPT (SS Female, M16)' },
+        { code: '8470', d1: '100mm', d2: '1 1/2"', label: '8470: 100mm x 1 1/2" NPT (SS Female, M16)' },
+        { code: '8570', d1: '100mm', d2: '2"', label: '8570: 100mm x 2" NPT (SS Female, M16)' },
+        { code: '8670', d1: '100mm', d2: '2 1/2"', label: '8670: 100mm x 2 1/2" NPT (SS Female, M16)' },
+        { code: '9470', d1: '150mm', d2: '1 1/2"', label: '9470: 150mm x 1 1/2" NPT (SS Female, M20)' },
+        { code: '9570', d1: '150mm', d2: '2"', label: '9570: 150mm x 2" NPT (SS Female, M20)' },
+        { code: '9670', d1: '150mm', d2: '2 1/2"', label: '9670: 150mm x 2 1/2" NPT (SS Female, M20)' },
+        { code: '9770', d1: '150mm', d2: '3"', label: '9770: 150mm x 3" NPT (SS Female, M20)' },
+
+        // ANSI Female Threaded Flange (Carbon Steel)
+        { code: '2279', d1: '25mm', d2: '1"', label: '2279: 25mm x 1" NPT (CS Female, M14)' },
+        { code: '4479', d1: '40mm', d2: '1 1/2"', label: '4479: 40mm x 1 1/2" NPT (CS Female, M14)' },
+        { code: '5579', d1: '50mm', d2: '2"', label: '5579: 50mm x 2" NPT (CS Female, M16)' },
+        { code: '6279', d1: '63mm', d2: '1"', label: '6279: 63mm x 1" NPT (CS Female, M16)' },
+        { code: '6479', d1: '63mm', d2: '1 1/2"', label: '6479: 63mm x 1 1/2" NPT (CS Female, M16)' },
+        { code: '6579', d1: '63mm', d2: '2"', label: '6579: 63mm x 2" NPT (CS Female, M16)' },
+        { code: '7279', d1: '80mm', d2: '1"', label: '7279: 80mm x 1" NPT (CS Female, M16)' },
+        { code: '7479', d1: '80mm', d2: '1 1/2"', label: '7479: 80mm x 1 1/2" NPT (CS Female, M16)' },
+        { code: '7579', d1: '80mm', d2: '2"', label: '7579: 80mm x 2" NPT (CS Female, M16)' },
+        { code: '7679', d1: '80mm', d2: '2 1/2"', label: '7679: 80mm x 2 1/2" NPT (CS Female, M16)' },
+        { code: '8479', d1: '100mm', d2: '1 1/2"', label: '8479: 100mm x 1 1/2" NPT (CS Female, M16)' },
+        { code: '8579', d1: '100mm', d2: '2"', label: '8579: 100mm x 2" NPT (CS Female, M16)' },
+        { code: '9279', d1: '150mm', d2: '2 1/2"', label: '9279: 150mm x 2 1/2" NPT (CS Female, M16)' },
+        { code: '9479', d1: '150mm', d2: '1 1/2"', label: '9479: 150mm x 1 1/2" NPT (CS Female, M20)' },
+        { code: '9579', d1: '150mm', d2: '2"', label: '9579: 150mm x 2" NPT (CS Female, M20)' },
+        { code: '9679', d1: '150mm', d2: '2 1/2"', label: '9679: 150mm x 2 1/2" NPT (CS Female, M20)' },
+        { code: '9779', d1: '150mm', d2: '3"', label: '9779: 150mm x 3" NPT (CS Female, M20)' }
     ]
 };
 
