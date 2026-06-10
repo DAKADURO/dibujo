@@ -2738,6 +2738,31 @@ function regenerateCoplePathCouplings() {
     let distanceAccum = inputDist; // distance remaining to place next cople
 
     for (const seg of coplePathSegments) {
+        // Attempt to find diameter from assigned properties
+        let segDiameter = null;
+        if (seg.entity) {
+            if (seg.entity._isJoined && seg.entity._originalJl) {
+                const jl = seg.entity._originalJl;
+                if (jl.points && jl.points.length >= 1) {
+                    const id = "JL_" + Math.round(jl.points[0].x) + "_" + Math.round(jl.points[0].y);
+                    const al = assignedLines.find(a => a.id === id);
+                    if (al) segDiameter = al.diameter;
+                }
+            } else {
+                const pts = seg.entity.vertices || [];
+                for (let j = 0; j < pts.length - 1; j++) {
+                    const p1 = pts[j];
+                    const p2 = pts[j+1];
+                    const id = seg.entity.handle || ("L_" + Math.round(p1.x) + "_" + Math.round(p1.y) + "_" + Math.round(p2.x) + "_" + Math.round(p2.y));
+                    const al = assignedLines.find(a => a.id === id);
+                    if (al) {
+                        segDiameter = al.diameter;
+                        break;
+                    }
+                }
+            }
+        }
+
         const pts = seg.points;
         for (let i = 0; i < pts.length - 1; i++) {
             const pA = pts[i];
@@ -2754,7 +2779,8 @@ function regenerateCoplePathCouplings() {
                     y: pA.y + dy * t,
                     angle: Math.atan2(dy, dx),
                     color,
-                    matrixId: coplePathMatrixId
+                    matrixId: coplePathMatrixId,
+                    diameter: segDiameter
                 });
                 pos += inputDist;
             }

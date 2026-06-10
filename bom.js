@@ -153,12 +153,19 @@ export function generateBOM(dxfData, virtualCouplings = [], pipingSymbols = [], 
     }
     // Add virtual couplings
     if (virtualCouplings && virtualCouplings.length > 0) {
-        fittingCounts['VirtualCople'] = { 
-            description: 'Cople (Matriz Virtual)', 
-            type: 'Cople', 
-            layer: 'Virtual', 
-            count: virtualCouplings.length 
-        };
+        for (const cople of virtualCouplings) {
+            const dia = cople.diameter || 'Sin asignar';
+            const key = `VirtualCople_${dia}`;
+            if (!fittingCounts[key]) {
+                fittingCounts[key] = { 
+                    description: `Cople (Matriz Virtual) ${dia}`, 
+                    type: 'Cople', 
+                    layer: 'Virtual', 
+                    count: 0 
+                };
+            }
+            fittingCounts[key].count++;
+        }
     }
     
     // Add manual piping symbols
