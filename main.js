@@ -3523,6 +3523,47 @@ function migrateSymbolData(s) {
     return { ...s, selected: false };
 }
 
+/**
+ * For old couplings that were saved without a diameter field,
+ * infer the diameter from the nearest assignedLine segment.
+ */
+function migrateCouplings(couplings, lines) {
+    if (!couplings || couplings.length === 0) return couplings;
+    if (!lines || lines.length === 0) return couplings;
+
+    for (const c of couplings) {
+        if (c.diameter) continue; // already has diameter, skip
+
+        let bestDia = null;
+        let bestDist = Infinity;
+
+        for (const al of lines) {
+            if (!al.points || al.points.length < 2 || !al.diameter) continue;
+            for (let i = 0; i < al.points.length - 1; i++) {
+                const p1 = al.points[i];
+                const p2 = al.points[i + 1];
+                // Point-to-segment distance
+                const dx = p2.x - p1.x, dy = p2.y - p1.y;
+                const lenSq = dx * dx + dy * dy;
+                let t = lenSq > 0 ? ((c.x - p1.x) * dx + (c.y - p1.y) * dy) / lenSq : 0;
+                t = Math.max(0, Math.min(1, t));
+                const nx = p1.x + t * dx - c.x;
+                const ny = p1.y + t * dy - c.y;
+                const dist = Math.sqrt(nx * nx + ny * ny);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestDia = al.diameter;
+                }
+            }
+        }
+
+        if (bestDia !== null) {
+            c.diameter = bestDia;
+        }
+    }
+    return couplings;
+}
+
 
 let isRemoteUpdate = false;
 let lastUpdateTime = 0;
@@ -3556,7 +3597,11 @@ function setupFirebaseSync() {
             if (data.customLines) customLines = data.customLines; else customLines = [];
             
             virtualCouplings.length = 0;
-            if (data.couplings) virtualCouplings.push(...data.couplings);
+            if (data.couplings) {
+                const loadedLines = data.assignedLines || [];
+                migrateCouplings(data.couplings, loadedLines);
+                virtualCouplings.push(...data.couplings);
+            }
             
             if (data.unit) {
                 currentUnit = data.unit;
@@ -3715,6 +3760,8 @@ function loadAnnotations() {
             if (data.joinedLines) joinedLines = data.joinedLines;
             if (data.couplings) {
                 virtualCouplings.length = 0;
+                const loadedLines = data.assignedLines || assignedLines || [];
+                migrateCouplings(data.couplings, loadedLines);
                 virtualCouplings.push(...data.couplings);
             }
             if (data.unit) {
@@ -4259,6 +4306,8 @@ document.getElementById('project-input')?.addEventListener('change', (e) => {
             if (Array.isArray(data.assignedLines)) assignedLines = data.assignedLines;
             if (Array.isArray(data.couplings)) {
                 virtualCouplings.length = 0;
+                const loadedLines = Array.isArray(data.assignedLines) ? data.assignedLines : assignedLines;
+                migrateCouplings(data.couplings, loadedLines);
                 virtualCouplings.push(...data.couplings);
             }
             if (Array.isArray(data.symbols)) {
