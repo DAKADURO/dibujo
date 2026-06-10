@@ -974,11 +974,21 @@ export function generateModifiedDxfBlob() {
             const d = sSize * 0.7071; // sin(45)*sSize
             drawSeg(0, 0, d, -d);
         } else if (sym.type === 'codo') {
-            // Codos use Z1 (Center-to-Face) for leg length if available
-            const catalogZ1 = parseLengthToDxf(sym.Z1 || sym.L);
+            // Codos use Z1 (Center-to-Face) for leg length.
+            // Try sym.Z1 first, then sym.L, then look up in catalog by code/d1.
+            let z1Str = sym.Z1 || sym.L || null;
+            if (!z1Str && (sym.code || sym.d1)) {
+                const catItems = CATALOG_AIRPIPE['codo'] || [];
+                const found = sym.code
+                    ? catItems.find(c => c.code === sym.code)
+                    : catItems.find(c => c.d1 === sym.d1);
+                if (found) z1Str = found.Z1 || found.L;
+            }
+            const catalogZ1 = parseLengthToDxf(z1Str);
             const legSize = catalogZ1 !== null ? catalogZ1 : (sSizeFallback * 2);
             drawSeg(-legSize, 0,  0, 0);
             drawSeg(0, 0,  0, -legSize);
+
         } else if (sym.type === 'reductor') {
             drawSeg(-sSize, -sSize * 0.6,  sSize, -sSize * 0.35);
             drawSeg( sSize, -sSize * 0.35, sSize,  sSize * 0.35);
@@ -1017,8 +1027,25 @@ export function generateModifiedDxfBlob() {
 
         const txtH  = sSize * 0.2;
         const txtW  = label.length * txtH * 0.6;
-        const pL    = rotatePt(cx, cy, cx - txtW / 2, cy + sSize * 1.4, dxfAngle);
-        customEntities += dxfText(label, pL.x, pL.y, txtH, color, dxfAngle);
+        
+        let textAngle = dxfAngle % (2 * Math.PI);
+        if (textAngle > Math.PI) textAngle -= 2 * Math.PI;
+        else if (textAngle < -Math.PI) textAngle += 2 * Math.PI;
+        
+        if (textAngle > Math.PI / 2 + 0.001 || textAngle < -Math.PI / 2 - 0.001) {
+            textAngle -= Math.PI;
+        }
+
+        const textCenterUnrotatedX = cx;
+        const textCenterUnrotatedY = cy + sSize * 1.4 + txtH / 2;
+        const textCenterFinal = rotatePt(cx, cy, textCenterUnrotatedX, textCenterUnrotatedY, dxfAngle);
+
+        const pL = rotatePt(textCenterFinal.x, textCenterFinal.y, 
+                            textCenterFinal.x - txtW / 2, 
+                            textCenterFinal.y - txtH / 2, 
+                            textAngle);
+
+        customEntities += dxfText(label, pL.x, pL.y, txtH, color, textAngle);
     }
 
     // ── 5. Inject entities before ENDSEC of the ENTITIES section ─────────────
@@ -2322,9 +2349,9 @@ function updateSymbolPropertiesUI(x, y) {
             } else if (sym.type === 'tee-lat') {
                 options = CATALOG_AIRPIPE['tee-lat'];
             } else if (sym.type === 'tee') {
-                // For regular tee, combine standard sizes and reducing tees
+                // Combine equal and reducing tees
                 options = [
-                    ...CATALOG_AIRPIPE['standard'].map(o => ({ ...o, label: `Igual ${o.label}` })),
+                    ...CATALOG_AIRPIPE['tee-igual'],
                     ...CATALOG_AIRPIPE['tee-red']
                 ];
             } else if (sym.type === 'quickdrop') {
@@ -2333,6 +2360,10 @@ function updateSymbolPropertiesUI(x, y) {
                 options = CATALOG_AIRPIPE['valvula'];
             } else if (sym.type === 'brida') {
                 options = CATALOG_AIRPIPE['brida'];
+            } else if (sym.type === 'codo') {
+                options = CATALOG_AIRPIPE['codo'];
+            } else if (sym.type === 'tapon') {
+                options = CATALOG_AIRPIPE['tapon'];
             } else {
                 options = CATALOG_AIRPIPE['standard'];
             }
@@ -3375,19 +3406,35 @@ function parseLengthToDxf(L) {
 
 function migrateSymbolData(s) {
     if (s && s.code) {
+        // Migrate by code: refresh L and Z1 from catalog
         for (const cat of Object.keys(CATALOG_AIRPIPE)) {
             if (cat === 'standard') continue;
             const item = CATALOG_AIRPIPE[cat].find(c => c.code === s.code);
             if (item) {
-                // Ensure L and Z1 match the latest catalog exactly
                 s.L = item.L;
                 if (item.Z1) s.Z1 = item.Z1;
                 break;
             }
         }
+    } else if (s && s.type && s.d1 && !s.code) {
+        // Migrate by type+d1: find the matching catalog entry and assign code, L, Z1
+        const catKey = s.type; // 'codo', 'tee', 'tee-lat', 'reductor', etc.
+        const catItems = CATALOG_AIRPIPE[catKey] || [];
+        const item = catItems.find(c => c.d1 === s.d1);
+        if (item) {
+            s.code = item.code;
+            s.L = item.L;
+            if (item.Z1) s.Z1 = item.Z1;
+        } else if (catKey === 'tee') {
+            // For tee, check tee-igual and tee-red as well
+            const item2 = (CATALOG_AIRPIPE['tee-igual'] || []).find(c => c.d1 === s.d1)
+                       || (CATALOG_AIRPIPE['tee-red']   || []).find(c => c.d1 === s.d1);
+            if (item2) { s.code = item2.code; s.L = item2.L; }
+        }
     }
     return { ...s, selected: false };
 }
+
 
 let isRemoteUpdate = false;
 let lastUpdateTime = 0;
