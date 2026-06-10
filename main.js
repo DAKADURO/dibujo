@@ -1034,10 +1034,11 @@ export function generateModifiedDxfBlob() {
             }
 
         } else if (sym.type === 'reductor') {
-            drawSeg(-sSize, -sSize * 0.6,  sSize, -sSize * 0.35);
-            drawSeg( sSize, -sSize * 0.35, sSize,  sSize * 0.35);
-            drawSeg( sSize,  sSize * 0.35, -sSize, sSize * 0.6);
-            drawSeg(-sSize,  sSize * 0.6, -sSize, -sSize * 0.6);
+            const L = sSize * 2;
+            drawSeg(0, -sSize * 0.6,  L, -sSize * 0.35);
+            drawSeg( L, -sSize * 0.35, L,  sSize * 0.35);
+            drawSeg( L,  sSize * 0.35, 0, sSize * 0.6);
+            drawSeg(0,  sSize * 0.6, 0, -sSize * 0.6);
         } else if (sym.type === 'brida') {
             drawSeg(-sSize, -sSize * 0.8, -sSize, sSize * 0.8);
             drawSeg( sSize, -sSize * 0.8,  sSize, sSize * 0.8);
@@ -1850,7 +1851,7 @@ function getSymbolConnectionPortsDxf(sym) {
             }
             return [portAt(-legSize, 0), portAt(0, legSize)];
         }
-        case 'reductor': return [portAt(-s, 0), portAt(s, 0)];
+        case 'reductor': return [portAt(0, 0), portAt(s * 2, 0)];
         case 'brida':
         case 'valvula':
             return [portAt(-s, 0), portAt(s, 0)];
@@ -2960,8 +2961,9 @@ function drawSymbols() {
                 ctx.lineTo(0, legSize);                        // vertical
             }
         } else if (sym.type === 'reductor') {
-            ctx.moveTo(-s, -s * 0.6); ctx.lineTo(s, -s * 0.35);
-            ctx.lineTo(s, s * 0.35);  ctx.lineTo(-s, s * 0.6);
+            const L = sSize; // Total length is sSize (since sSize is catalogL * scale)
+            ctx.moveTo(0, -s * 0.6); ctx.lineTo(L, -s * 0.35);
+            ctx.lineTo(L, s * 0.35);  ctx.lineTo(0, s * 0.6);
             ctx.closePath();
         } else if (sym.type === 'brida') {
             ctx.moveTo(-s, -s * 0.8); ctx.lineTo(-s, s * 0.8);
