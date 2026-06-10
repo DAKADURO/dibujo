@@ -2961,7 +2961,7 @@ function drawSymbols() {
                 ctx.lineTo(0, legSize);                        // vertical
             }
         } else if (sym.type === 'reductor') {
-            const L = sSize; // Total length is sSize (since sSize is catalogL * scale)
+            const L = s * 2; // full length = 2 × half-size (s = catalogL/2 × scale)
             ctx.moveTo(0, -s * 0.6); ctx.lineTo(L, -s * 0.35);
             ctx.lineTo(L, s * 0.35);  ctx.lineTo(0, s * 0.6);
             ctx.closePath();
