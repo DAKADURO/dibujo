@@ -78,6 +78,17 @@ let joinedLines = [];          // finalized unified polylines: { points, color }
 let joinPendingEntities = [];  // entities being picked during current join session
 
 const CATALOG_AIRPIPE = {
+    'union': [
+        { code: '1002', d1: '20mm (3/4")', label: '1002: 20mm (3/4") (Unión)', L: '59 mm' },
+        { code: '2002', d1: '25mm (1")', label: '2002: 25mm (1") (Unión)', L: '59 mm' },
+        { code: '4002', d1: '40mm (1 1/2")', label: '4002: 40mm (1 1/2") (Unión)', L: '78 mm' },
+        { code: '5002', d1: '50mm (2")', label: '5002: 50mm (2") (Unión)', L: '79 mm' },
+        { code: '6002', d1: '63mm (2 1/2")', label: '6002: 63mm (2 1/2") (Unión)', L: '114 mm' },
+        { code: '7002', d1: '80mm (3")', label: '7002: 80mm (3") (Unión)', L: '114 mm' },
+        { code: '8002', d1: '100mm (4")', label: '8002: 100mm (4") (Unión)', L: '146 mm' },
+        { code: '9002', d1: '150mm (6")', label: '9002: 150mm (6") (Unión)', L: '146 mm' },
+        { code: 'A002', d1: '200mm (8")', label: 'A002: 200mm (8") (Unión)', L: '135 mm' }
+    ],
     'reductor': [
         { code: '2121', d1: '25mm (1")', d2: '20mm (3/4")', label: '2121: 25mm (1") x 20mm (3/4")', L: '130 mm' },
         { code: '4221', d1: '40mm (1 1/2")', d2: '25mm (1")', label: '4221: 40mm (1 1/2") x 25mm (1")', L: '156 mm' },
@@ -934,6 +945,21 @@ export function generateModifiedDxfBlob() {
         const cx = c.x, cy = c.y;
         const color = c.color || document.getElementById('cople-color-picker')?.value || '#ef4444';
         const a = c.angle || 0; // already in radians (set by Math.atan2 in handleCopleClick)
+        
+        let cHalf = Math.max(drawingScale * 1.5, 0.3);  // half-width of coupling rectangle
+        let cHalfH = Math.max(drawingScale * 0.6, 0.1); // half-height
+
+        // Use real size if diameter is assigned
+        if (c.diameter) {
+            const catItem = CATALOG_AIRPIPE['union'].find(i => i.d1 === c.diameter);
+            if (catItem && catItem.L) {
+                const realL = parseLengthToDxf(catItem.L);
+                if (realL) {
+                    cHalf = realL / 2;
+                    cHalfH = realL / 4; // visual thickness proportional to length
+                }
+            }
+        }
         
         // Draw the coupling as a thick LWPOLYLINE from the left side to the right side
         const ptA = rotatePt(cx, cy, cx - cHalf, cy, a);
