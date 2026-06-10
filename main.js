@@ -227,16 +227,27 @@ const CATALOG_AIRPIPE = {
         { code: 'A151', d1: '200mm (8")', label: 'A151: 200mm (8") (Butterfly Valve SS)', L: '278 mm' }
     ],
     'codo': [
-        { code: '1003', d1: '20mm (3/4")', label: '1003: Codo 20mm (3/4")', L: '3.90"', Z1: '1.93"' },
-        { code: '2003', d1: '25mm (1")', label: '2003: Codo 25mm (1")', L: '4.13"', Z1: '2.05"' },
-        { code: '4003', d1: '40mm (1 1/2")', label: '4003: Codo 40mm (1 1/2")', L: '5.47"', Z1: '2.72"' },
-        { code: '5003', d1: '50mm (2")', label: '5003: Codo 50mm (2")', L: '6.02"', Z1: '2.87"' },
-        { code: '6003', d1: '63mm (2 1/2")', label: '6003: Codo 63mm (2 1/2")', L: '5.63"', Z1: '4.13"' },
-        { code: '7003', d1: '80mm (3")', label: '7003: Codo 80mm (3")', L: '6.14"', Z1: '4.33"' },
-        { code: '8003', d1: '100mm (4")', label: '8003: Codo 100mm (4")', L: '7.64"', Z1: '5.51"' },
-        { code: '9003', d1: '150mm (6")', label: '9003: Codo 150mm (6")', L: '10.39"', Z1: '7.28"' },
-        { code: 'A003', d1: '200mm (8")', label: 'A003: Codo 200mm (8")', L: '12.32"', Z1: '8.19"' },
-        { code: 'M003', d1: '250mm (10")', label: 'M003: Codo 250mm (10")', L: '21.97"', Z1: '16.46"' }
+        // Equal 90° Elbow
+        { code: '1003', d1: '20mm (3/4")', label: '1003: Codo 90° 20mm (3/4")', L: '100 mm', Z1: '61 mm' },
+        { code: '2003', d1: '25mm (1")', label: '2003: Codo 90° 25mm (1")', L: '105 mm', Z1: '67 mm' },
+        { code: '4003', d1: '40mm (1 1/2")', label: '4003: Codo 90° 40mm (1 1/2")', L: '139 mm', Z1: '91 mm' },
+        { code: '5003', d1: '50mm (2")', label: '5003: Codo 90° 50mm (2")', L: '152 mm', Z1: '101 mm' },
+        { code: '6003', d1: '63mm (2 1/2")', label: '6003: Codo 90° 63mm (2 1/2")', L: '143 mm', Z1: '105 mm' },
+        { code: '7003', d1: '80mm (3")', label: '7003: Codo 90° 80mm (3")', L: '156 mm', Z1: '110 mm' },
+        { code: '8003', d1: '100mm (4")', label: '8003: Codo 90° 100mm (4")', L: '194 mm', Z1: '140 mm' },
+        { code: '9003', d1: '150mm (6")', label: '9003: Codo 90° 150mm (6")', L: '265 mm', Z1: '185 mm' },
+        { code: 'A003', d1: '200mm (8")', label: 'A003: Codo 90° 200mm (8")', L: '315 mm', Z1: '207.5 mm' },
+        { code: 'M003', d1: '250mm (10")', label: 'M003: Codo 90° 250mm (10")', L: '21.97"', Z1: '16.46"' },
+        // Equal 45° Elbow
+        { code: '1004', d1: '20mm (3/4")', label: '1004: Codo 45° 20mm (3/4")', L: '118 mm', Z1: '39 mm' },
+        { code: '2004', d1: '25mm (1")', label: '2004: Codo 45° 25mm (1")', L: '119 mm', Z1: '40 mm' },
+        { code: '4004', d1: '40mm (1 1/2")', label: '4004: Codo 45° 40mm (1 1/2")', L: '159 mm', Z1: '52 mm' },
+        { code: '5004', d1: '50mm (2")', label: '5004: Codo 45° 50mm (2")', L: '162 mm', Z1: '54 mm' },
+        { code: '6004', d1: '63mm (2 1/2")', label: '6004: Codo 45° 63mm (2 1/2")', L: '144 mm', Z1: '84 mm' },
+        { code: '7004', d1: '80mm (3")', label: '7004: Codo 45° 80mm (3")', L: '145 mm', Z1: '85 mm' },
+        { code: '8004', d1: '100mm (4")', label: '8004: Codo 45° 100mm (4")', L: '179 mm', Z1: '105 mm' },
+        { code: '9004', d1: '150mm (6")', label: '9004: Codo 45° 150mm (6")', L: '215 mm', Z1: '126 mm' },
+        { code: 'A004', d1: '200mm (8")', label: 'A004: Codo 45° 200mm (8")', L: '231 mm', Z1: '135 mm' }
     ],
     'tapon': [
         { code: '1006', d1: '20mm (3/4")', label: '1006: Tapón 20mm (3/4")', L: '2.80"' },
@@ -1012,8 +1023,15 @@ export function generateModifiedDxfBlob() {
             }
             const catalogZ1 = parseLengthToDxf(z1Str);
             const legSize = catalogZ1 !== null ? catalogZ1 : (sSizeFallback * 2);
-            drawSeg(-legSize, 0,  0, 0);
-            drawSeg(0, 0,  0, -legSize);
+            const is45 = sym.code && sym.code.endsWith('4');
+            if (is45) {
+                const d = legSize * 0.7071;
+                drawSeg(-legSize, 0,  0, 0);
+                drawSeg(0, 0,  d, -d);
+            } else {
+                drawSeg(-legSize, 0,  0, 0);
+                drawSeg(0, 0,  0, -legSize);
+            }
 
         } else if (sym.type === 'reductor') {
             drawSeg(-sSize, -sSize * 0.6,  sSize, -sSize * 0.35);
@@ -1824,7 +1842,14 @@ function getSymbolConnectionPortsDxf(sym) {
             const d = s * 0.7071; // 45 deg branch
             return [portAt(-s, 0), portAt(s, 0), portAt(d, -d)];
         }
-        case 'codo':     return [portAt(-legSize, 0), portAt(0, legSize)];
+        case 'codo': {
+            const is45 = sym.code && sym.code.endsWith('4');
+            if (is45) {
+                const d = legSize * 0.7071;
+                return [portAt(-legSize, 0), portAt(d, d)];
+            }
+            return [portAt(-legSize, 0), portAt(0, legSize)];
+        }
         case 'reductor': return [portAt(-s, 0), portAt(s, 0)];
         case 'brida':
         case 'valvula':
@@ -2921,8 +2946,15 @@ function drawSymbols() {
         } else if (sym.type === 'codo') {
             const catalogZ1 = (typeof parseLengthToDxf === 'function') ? parseLengthToDxf(sym.Z1 || sym.L) : null;
             const legSize = catalogZ1 !== null ? catalogZ1 * viewState.scale : (14 * 2);
-            ctx.moveTo(-legSize, 0); ctx.lineTo(0, 0);    // horizontal
-            ctx.lineTo(0, legSize);                        // vertical
+            const is45 = sym.code && sym.code.endsWith('4');
+            if (is45) {
+                const d = legSize * 0.7071;
+                ctx.moveTo(-legSize, 0); ctx.lineTo(0, 0);
+                ctx.lineTo(d, d);
+            } else {
+                ctx.moveTo(-legSize, 0); ctx.lineTo(0, 0);    // horizontal
+                ctx.lineTo(0, legSize);                        // vertical
+            }
         } else if (sym.type === 'reductor') {
             ctx.moveTo(-s, -s * 0.6); ctx.lineTo(s, -s * 0.35);
             ctx.lineTo(s, s * 0.35);  ctx.lineTo(-s, s * 0.6);
