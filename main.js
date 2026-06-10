@@ -1048,10 +1048,11 @@ export function generateModifiedDxfBlob() {
             drawSeg(-sSize * 2, 0,  0, 0);
             drawSeg(0, -sSize * 0.7, 0, sSize * 0.7);
         } else if (sym.type === 'valvula') {
-            drawSeg(-sSize, -sSize * 0.6, -sSize,  sSize * 0.6);
-            drawSeg(-sSize,  sSize * 0.6,  sSize, -sSize * 0.6);
-            drawSeg( sSize, -sSize * 0.6,  sSize,  sSize * 0.6);
-            drawSeg( sSize,  sSize * 0.6, -sSize, -sSize * 0.6);
+            const L = sSize * 2;
+            drawSeg(0, -sSize * 0.5, 0,  sSize * 0.5);
+            drawSeg(0,  sSize * 0.5, L, -sSize * 0.5);
+            drawSeg(L, -sSize * 0.5, L,  sSize * 0.5);
+            drawSeg(L,  sSize * 0.5, 0, -sSize * 0.5);
         } else if (sym.type === 'quickdrop') {
             const pC = rotatePt(cx, cy, cx, cy, dxfAngle);
             customEntities += dxfCircle(pC.x, pC.y, sSize * 0.5, color);
@@ -1852,9 +1853,8 @@ function getSymbolConnectionPortsDxf(sym) {
             return [portAt(-legSize, 0), portAt(0, legSize)];
         }
         case 'reductor': return [portAt(0, 0), portAt(s * 2, 0)];
-        case 'brida':
-        case 'valvula':
-            return [portAt(-s, 0), portAt(s, 0)];
+        case 'brida': return [portAt(-s, 0), portAt(s, 0)];
+        case 'valvula': return [portAt(0, 0), portAt(s * 2, 0)];
         case 'tapon':    return [portAt(-taponSize, 0)];
         default:         return [];
     }
@@ -2977,11 +2977,12 @@ function drawSymbols() {
             ctx.arc(0, 0, s * 0.4, 0, Math.PI * 2); // circle on main line
             ctx.moveTo(0, s * 0.4); ctx.lineTo(0, s); // drop
         } else if (sym.type === 'valvula') {
-            // Bowtie shape
-            ctx.moveTo(-s, -s * 0.5);
-            ctx.lineTo(-s, s * 0.5);
-            ctx.lineTo(s, -s * 0.5);
-            ctx.lineTo(s, s * 0.5);
+            // Bowtie shape from edge
+            const L = s * 2;
+            ctx.moveTo(0, -s * 0.5);
+            ctx.lineTo(0, s * 0.5);
+            ctx.lineTo(L, -s * 0.5);
+            ctx.lineTo(L, s * 0.5);
             ctx.closePath();
         }
         ctx.stroke();
