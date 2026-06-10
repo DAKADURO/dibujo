@@ -2868,10 +2868,6 @@ function drawCouplings() {
     if (virtualCouplings.length === 0) return;
     ctx.save();
     
-    // Draw couplings as small rectangles perpendicular to the line
-    const width = 10;
-    const height = 4;
-    
     for (const c of virtualCouplings) {
         if (c.x === undefined || c.y === undefined || isNaN(c.x) || isNaN(c.y)) continue;
         const p = dxfToScreen(c.x, c.y);
@@ -2886,13 +2882,21 @@ function drawCouplings() {
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 1;
         
-        const exportScale = window.exportScaleFactor || 1;
-        let scaleFactor = Math.min(1.0, viewState.scale / 15.0);
-        if (isNaN(scaleFactor) || scaleFactor <= 0.01) scaleFactor = 1.0;
-        ctx.scale(scaleFactor * exportScale, scaleFactor * exportScale);
+        // Use real catalog size if diameter is known, else fall back to proportional
+        let halfW = 5, halfH = 2;
+        if (c.diameter && typeof parseLengthToDxf === 'function') {
+            const catItem = CATALOG_AIRPIPE['union'].find(i => i.d1 === c.diameter);
+            if (catItem && catItem.L) {
+                const realL = parseLengthToDxf(catItem.L);
+                if (realL) {
+                    halfW = (realL / 2) * viewState.scale;
+                    halfH = Math.max(halfW * 0.35, 2);
+                }
+            }
+        }
         
-        ctx.fillRect(-width/2, -height/2, width, height);
-        ctx.strokeRect(-width/2, -height/2, width, height);
+        ctx.fillRect(-halfW, -halfH, halfW * 2, halfH * 2);
+        ctx.strokeRect(-halfW, -halfH, halfW * 2, halfH * 2);
         ctx.restore();
     }
     
